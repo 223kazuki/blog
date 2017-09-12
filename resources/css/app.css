@@ -1,0 +1,26 @@
+body {
+    background-color: #F1F1F1;
+}
+header {
+    background-color: #333333;
+}
+header > p > a {
+    color: #F1F1F1;
+    text-decoration: none;
+}
+.content {
+    max-width: 720px;
+}
+footer > ul > li > a {
+    color: #000000;
+}
+a.tag {
+    border-radius: 5px;
+    padding-top: 2px;
+    padding-bottom: 2px;
+    padding-left: 4px;
+    padding-right: 4px;
+    background-color: #DDDDDD;
+    text-decoration: none;
+    color: #999999;
+}
