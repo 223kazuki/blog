@@ -51,7 +51,7 @@
         (rss :description "Hashobject blog" :out-dir "./")
         ;; (atom-feed :filterer :original :out-dir "./")
         (print-meta)
-        (target :dir #{"../223kazuki.github.io"})
+        (target :dir #{"../223kazuki.github.io"} :no-clean true)
         (notify)))
 
 (deftask dev
