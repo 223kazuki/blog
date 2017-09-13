@@ -24,7 +24,7 @@
 (deftask build
   []
   (comp (global-metadata)
-        (markdown)
+        (markdown :md-exts {:tables true})
         (draft)
         (print-meta)
         (slug)
