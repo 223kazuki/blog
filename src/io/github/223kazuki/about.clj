@@ -23,7 +23,7 @@
       [:td "System Engineer @ Research Center in San Jose, CA"]]
      [:tr
       [:td "Apr/2012 - Now"]
-      [:td "General Manager @ Kokugakuin University Sumo Club / 大學相撲部監督"]]]
+      [:td "General Manager @ Kokugakuin University Sumo Club / 國學院大學相撲部監督"]]]
     [:p.h2 "SNS Accounts"]
     [:ul
      [:li "Twitter: " [:a {:href "//twitter.com/goronao"} "@goronao"]]
