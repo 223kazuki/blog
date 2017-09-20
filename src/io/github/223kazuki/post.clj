@@ -15,5 +15,5 @@
               (for [tag tags]
                 [:a.ml1.tag.right {:href (str "/tags/" tag ".html")} tag])]
              [:hr.mb2]
-             [:article.markdown-body
+             [:article.markdown-body.mb2
               content]])))
