@@ -14,7 +14,6 @@ date-published: 2017-09-11
 headline:
 in-language: ja
 keywords: clojure, clojurescript, om
-canonical-url: https://223kazuki.github.io/post2.html
 uuid: 2c71b011-6987-45bf-b342-e27a93ecccd9
 tags:
  - clojure
