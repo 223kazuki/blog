@@ -12,7 +12,7 @@
              [:h1 title]
              [:div.fit.clearfix
               [:time.left (f/unparse formatter (c/from-date date-published))]
-              (for [tag tags]
+              (for [tag (reverse tags)]
                 [:a.ml1.tag.right {:href (str "/tags/" tag ".html")} tag])]
              [:hr.mb2]
              [:article.markdown-body.mb2

@@ -8,9 +8,9 @@ author-github: https://github.com/223kazuki
 author-twitter: goronao
 author-avatar: /images/anton-avatar.png
 location: San Jose, CA, USA
-date-created: 2017-09-11
-date-modified: 2017-09-11
-date-published: 2017-09-11
+date-created: 2016-12-22
+date-modified: 2016-12-22
+date-published: 2016-12-22
 headline:
 in-language: ja
 keywords: clojure, clojurescript, om
