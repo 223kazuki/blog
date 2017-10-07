@@ -6,7 +6,7 @@ author-email: rixi223.kazuki@gmail.com
 author-url: https://twitter.com/goronao
 author-github: https://github.com/223kazuki
 author-twitter: goronao
-author-avatar: /images/anton-avatar.png
+author-avatar: https://pbs.twimg.com/profile_images/1218227972/P1060544_400x400.jpg
 location: San Jose, CA, USA
 date-created: 2017-09-19
 date-modified: 2017-09-19
