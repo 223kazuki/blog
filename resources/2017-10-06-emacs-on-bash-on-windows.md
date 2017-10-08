@@ -22,17 +22,17 @@ tags:
 
 ## 背景ポエム
 
-現在、メインの開発機ではないものの Windows 機（Surface Laptop）を使っています。  
+メインの開発機ではないものの Windows 機（Surface Laptop）を使っています。  
 Surface Laptop は素晴らしいし、雑務で Windows 必要なことも多いので、持ち出し用 PC としては気に入ってます。
 
-しかし最近割と長期（数週間）に社外に出て、その Windows 機で開発する機会があり、結構なつらみを感じるようになりました。  
-特に一緒に作業している開発者(OSX)と OS の違いでお互いにワンテンポの遅れが出てしまうことに対する申し訳なさがつらい。
+しかし最近、長期間（数週間）社外にて、その Windows 機で開発する機会があり、結構なつらみを感じました。  
+特に一緒に作業している開発者(OSX)と OS の違いでお互いにワンテンポの遅れが出てしまう申し訳なさがつらい。
 
-途中で Arch LINUX の Dual Boot を試そうかと思ったほどでしたが、 Surface に対してはちょっとチャレンジングすぎると思いとどまりました。  
+途中で Arch LINUX の Dual Boot を試そうかと思ったほどでしたが、 Surface に対してはちょっとチャレンジングなので思いとどまりました。  
 そこで、これは **Bash on Windows** 利用の機運ではないかと思い至りました。
 
-元々の社用 PC が Windows だったこともあり、BoW は発表された当初から試してはいました。  
-しかし、ある時は解決できない不具合にぶつかり、ある時は Windows との相互運用性の低さに挫け、と毎回様々な理由で熱が冷めてしまっていました。
+元々の社用 PC が Windows だったこともあり、BoW は発表された当初から試してはいましたが、
+ある時は解決できない不具合にぶつかり、ある時は Windows との相互運用性の低さに挫け、と毎回様々な理由で熱が冷めてしまっていました。
 
 特に Windows との相互運用性という面は、そもそも改行コードが違うし、[Windows側からUbuntu側のファイルをいじると壊れることがある](https://qiita.com/kaitoy/items/e20d426cdd1f507bfddb) 件などに対して一つづつ妥協案を検討して行くと、別 PC 用意すべきという結論になってしまいます。
 
@@ -55,7 +55,8 @@ BoW 上の Emacs と、Windows でバッファ/クリップボード共有がし
 
 ## 環境
 
-Console Emulator は [cmder](http://cmder.net/) を使っています。
+今回の話に直接関係はないですが Console Emulator は [cmder](http://cmder.net/) を使っています。  
+BoW のセットアップや Emacs インストールについては省略します。
 
 |             | version |
 | ----------- | --- |
@@ -67,27 +68,28 @@ Console Emulator は [cmder](http://cmder.net/) を使っています。
 
 ## 解決方法
 
-### Lemonado セットアップ
+### Lemonade セットアップ
 まずは BoW 上から Windows のクリップボードに触れなければいけません。`clip` コマンドは触れません。  
-そこで [lemonade](https://github.com/pocke/lemonade) というツールを使います。  
+そこで [lemonade](https://github.com/pocke/lemonade) というツールを使います。
 lemonade は TCP 経由で Windows クリップボードを操作するツールです。
 
-今回の構成では、 Windows 上に lemonado のサーバが起動し BoW 上で lemonado クライアントを使う構成になります。  
-BoW 上で lemonado を使う方法については下記の記事がまとめてくれていたため参照してください。
+今回の構成では、 Windows 上に lemonade のサーバが起動し BoW 上で lemonade クライアントを使う構成になります。  
+BoW 上で lemonade を使う方法については下記の記事がまとめてくれていたため参照してください。
 
 [Bash on Windowsのクリップボード周り](https://qiita.com/aki017/items/8a8768a85590d21919ea)
 
 ただ、これだけだとまだ Emacs バッファとの共有が実現できていません。
 
-### Emacs/Lemonado 接続
-Lemonado のクライアント（BoW）側の基本的な使い方は下記のとおりです。
+### Emacs/Lemonade 接続
+Emacs から Lemonade のクライアントを呼び出す必要があります。
+Lemonade のクライアント（BoW）側の基本的な使い方は下記の通り。
 
 ```bash
 $ echo xxxxxxxxx | lemonade copy
 $ lemonade paste
 ```
 
-これをそれぞれ Emacs の kill/yank で中継させてあげればやりたきことが実現できます。
+これをそれぞれ Emacs の kill/yank で中継させてあげればやりたきことが実現できます。  
 注意しなければならないのは、双方向でそれぞれ適切に改行コードを換しなければならないことです。
 それを考慮し、下記を Emacs 初期化ファイルに追加し読み込みます。
 
@@ -107,7 +109,7 @@ $ lemonade paste
 
 以上で複数行を扱った際も適切にクリップボード共有が出来るようになっているはずです。
 
-## まとめ
+## 所感
 
-まずは一関門超えたという感じ。いけそうな感じ。  
-今後は「**それ Emacs でできるよ**」という人の後を追っかけていこうと思います。
+まずは一関門超えたという感じです。  
+NTEmacs よりはサクサク動きますし、次の問題にぶつかるまではこれで行こうと思います。
