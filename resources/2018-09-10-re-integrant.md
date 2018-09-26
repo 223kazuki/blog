@@ -31,16 +31,16 @@ https://github.com/223kazuki/cljs-dapp
 ### Background
 
 As I'm interested in Blockchain technology recently, I've developed Ethereum DApp by using ClojureScript + [re-frame](https://github.com/Day8/re-frame).
-In the frontend development, I had a lot of difficulty that comes from complexity of Ethereum eco system.
+In the frontend development, I faced a lot of difficulty that comes from the complexity of Ethereum ecosystem.
 
 * There are a lot of libraries(npm modules) to use.
     * [web3.js](https://github.com/ethereum/web3.js/), [ipfs-api](https://github.com/ipfs/js-ipfs-api), [uport-connect](https://github.com/uport-project/uport-connect)...
 * Each of them has initialization parameters and needs to change according to environments.
-* The state associated with them can change.
+* The states associated with them can change.
 * There are also dependencies among them.
     * For example, it is necessary to reinitialize web3 instance when connecting to uPort.
 
-Though the smart contract that is the essential part of DApp was not so complex, I was about to lose it for sometimes during the frontend development.
+Although the smart contract itself was not so complex, I was about to lose it for sometimes during the frontend development.
 In order to solve these problems, I wanted a platform like bellow.
 
 * It can split an application into modules.
