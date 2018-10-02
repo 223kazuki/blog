@@ -22,61 +22,58 @@ tags:
  - integrant
 ---
 
-In this post, I will introduce how to develop ClojureScript SPA by using the combination of integrant and re-frame.
+In this post, I'll introduce how to develop ClojureScript Single Page Application by using the combination of integrant and re-frame.
 
-
-背景は[前回紹介した記事](https://qiita.com/223kazuki/items/dd1af292a644e95a3085)の通りで、複雑なフロントエンドアプリケーションを re-frame+integrant の組み合わせで開発したいという話です。
-前回のサンプルは Ethereum DApp という特殊なケースで分かりづらかったので、改めて pure cljs なサンプルを作ってみました。
+I also introduced that in [the previous post](https://223kazuki.github.io/re-integrant.html). But as the previous example was special case, Ethereum DApp, it was a little complex to understand. So I develop an example again in pure cljs.
 
 https://github.com/223kazuki/re-integrant-app
 
-仮にこの構成は re-integrant と呼んでおきます。
+I tentatively call this pattern "re-integrant".
 
-## 全体像
+## Overview
 
-この構成で作った SPA は大きく３つの階層からなります。
+The SPA developed in this application pattern consists of three layers.
 
-1. アプリケーション全体のライフサイクルを制御する integrant 層
-2. ユーザの画面操作に応じて更新される単一の app-db を管理する re-frame 層
-3. ハンドラ経由で app-db をサブスクライブ・ディスパッチする View の reagent 層
+1. Integrant layer that manages the whole lifecycle of the application.
+2. Re-frame layer that manages app-db that is updated by user interaction.
+3. Reagent layer represents view that subscribes and dispatches app-db via re-frame handlers.
 
-また、アプリケーションは integrant によりモジュールに分割されており、re-frame　のハンドラはそれぞれのモジュールの名前空間に紐づけて初期化時に登録されます。
+And the application is divided into modules by integrant. Re-frame handlers are registered in each modules' namespaces when the modules initialize.
 
 ![re-integrant.png](https://qiita-image-store.s3.amazonaws.com/0/109888/0af426ba-2ab9-5fe5-1fda-22e0f136fcfe.png)
 
-## プロジェクト構成
+### Project Structure
 
-duct template の様なサーバサイド integrant アプリケーションに近い構成にしています。
-開発時と設定を切り分けるために dev ディレクトリを用意しています。
+I adopted the similar structure to the server side integrant application like duct template. And I created dev directory to manage development settings.
 
 ```bash
 .
 ├── project.clj
 ├── dev
-│   ├── resources
-│   │   └── dev.edn
-│   └── src
-│       └── user.cljs
+│   ├── resources
+│   │   └── dev.edn
+│   └── src
+│       └── user.cljs
 ├── resources
-│   ├── config.edn
-│   └── public
-│       ├── css
-│       │   └── site.css
-│       └── index.html
+│   ├── config.edn
+│   └── public
+│       ├── css
+│       │   └── site.css
+│       └── index.html
 └── src
     └── re_integrant_app
         ├── core.cljs
         ├── module
-        │   ├── app.cljs
-        │   ├── moment.cljs
-        │   └── router.cljs
+        │   ├── app.cljs
+        │   ├── moment.cljs
+        │   └── router.cljs
         ├── utils.cljc
         └── views.cljs
 ```
 
 ### project.clj
 
-今回使った主要なライブラリのバージョンは下記の通り。
+The versions of primary libraries are bellow.
 
 ```clojure
 [org.clojure/clojure "1.9.0"]
@@ -86,7 +83,7 @@ duct template の様なサーバサイド integrant アプリケーションに�
 [integrant "0.7.0"]
 ```
 
-ClojureScript のビルド設定はプロファイルごとに下記の通りで、開発時には Figwheel の jsload 時に `cljs.user/reset` が実行されるようにします。
+The build settings of ClojureScript in each profiles are bellow. Figwheel executes `cljs.user/reset` on jsload during development.
 
 ```clojure
   :cljsbuild
@@ -121,7 +118,7 @@ ClojureScript のビルド設定はプロファイルごとに下記の通りで
 
 ### config.edn
 
-毎秒更新される [Moment](https://momentjs.com/) オブジェクトを提供する `:module/moment` を新たに追加しています。
+I added `:module/moment` that provides [Moment](https://momentjs.com/) in each seconds.
 
 ```clojure
 {:re-integrant-app.module/moment {}
@@ -136,11 +133,11 @@ ClojureScript のビルド設定はプロファイルごとに下記の通りで
   :moment #ig/ref :re-integrant-app.module/moment}}
 ```
 
-### モジュール
+### Module
 
-前回記事と役割や仕様は変わりませんが処理を明示的に書くようにしてみました。
-マルチメソッド reg-sub と reg-event にハンドラ実装を追加していき、初期化時にまとめてハンドラ登録できるようにしています。
-Subscriptions のところは、`::now` をサブスクライブしている間のみ、毎秒 Moment オブジェクトを受け取れるような実装になっています。（参考: [Subscribing to External Data](https://github.com/Day8/re-frame/blob/master/docs/Subscribing-To-External-Data.md)）
+It doesn't do anything different from what I introduced in the last post. But I wrote process explicitly for the sake of ease.
+I added multimethods, reg-sub and reg-event to that we can add the implementation of handlers. We can register all of handlers by using it when the module initializes.
+The implementation of `::now` subscription means that it provides Moment object in each seconds only when it's subscribed. (Please refer to [Subscribing to External Data](https://github.com/Day8/re-frame/blob/master/docs/Subscribing-To-External-Data.md))
 
 ```clojure
 ;; Initial DB
@@ -187,26 +184,26 @@ Subscriptions のところは、`::now` をサブスクライブしている間�
   [k {:keys [:dev]}]
   (js/console.log (str "Initializing " k))
   (when dev (js/console.log "It's dev mode."))
-  (let [subs (->> reg-sub methods (map key))      ;; ハンドラキーワードを取得
-        events (->> reg-event methods (map key))] ;; 同上
-    (->> subs (map reg-sub) doall)                ;; それぞれのキーワードでマルチメソッドを実行しハンドラを登録
-    (->> events (map reg-event) doall)            ;; 同上
+  (let [subs (->> reg-sub methods (map key))      ;; Get the keywords of handlers.
+        events (->> reg-event methods (map key))] ;; Same as above.
+    (->> subs (map reg-sub) doall)                ;; Execute multimethod and register handlers.
+    (->> events (map reg-event) doall)            ;; Same as above.
     (re-frame/dispatch-sync [::init])
     {:subs subs :events events}))
 
 ;; Halt
 (defmethod ig/halt-key! :re-integrant-app.module/moment
-  [k {:keys [:subs :events]}]                      ;; ハンドラキーワードを取得
+  [k {:keys [:subs :events]}]                      ;; Get the keywords of handlers.
   (js/console.log (str "Halting " k))
   (re-frame/dispatch-sync [::halt])
-  (->> subs (map re-frame/clear-sub) doall)        ;; ハンドラキーワードを消去
-  (->> events (map re-frame/clear-event) doall))   ;; 同上
+  (->> subs (map re-frame/clear-sub) doall)        ;; Clear handlers.
+  (->> events (map re-frame/clear-event) doall))   ;; Same as above.
 ```
 
 ### View
 
-特に変更なしです。
-`::moment/now` をサブスクライブしている home-panel が開いている間だけ Moment オブジェクトが生成され続けます。
+It's not different from what was in the previous post.
+Only when home-panel which is subscribing `::moment/now` opens, `:module/moment` provides Moment objects.
 
 ```clojure
 (defn home-panel []
@@ -254,9 +251,9 @@ Subscriptions のところは、`::now` をサブスクライブしている間�
 
 ### core.cljs
 
-こちらも特に変更なしです。
-各モジュールをここで require しなければならないのはなんとかしたいですが、integrant の load-namespaces は clojure 限定のため難しそうです。
-system は開発時に書き換えたいのでアトムとして定義しています。
+It's also not changed so much.
+You need to require all modules because we can't use integrant's load-namespaces in ClojureScript.
+And I defined config as an atom because I want to change it during development.
 
 ```clojure
 (ns re-integrant-app.core
@@ -284,8 +281,7 @@ system は開発時に書き換えたいのでアトムとして定義してい�
 
 ### dev.edn
 
-開発時の設定です。
-確認用に `:module/moment` に `:dev true` を渡します。
+It's the development setting. I set `:dev true` in `:module/moment` to check if it's reflected.
 
 ```clojure
 {:re-integrant-app.module/moment {:dev true}}
@@ -293,9 +289,7 @@ system は開発時に書き換えたいのでアトムとして定義してい�
 
 ### user.cljs
 
-開発時のメイン名前空間です。
-dev.edn を読み込み system にマージしています。
-figwheel の jsload 時には reset が呼び出されます。
+It's the main namespace during development. It loads dev.edn and merge it to core/config. Figwheel call `reset` on jsload.
 
 ```clojure
 (ns cljs.user
@@ -314,13 +308,13 @@ figwheel の jsload 時には reset が呼び出されます。
   (start))
 ```
 
-## 開発
+## Development
 
-開発時には下記のコマンドで cljs repl を立ち上げます。
-コードを書き換えると Figwheel がビルドをキックして自動でブラウザに反映されます。
+You can start Figwheel server and open cljs repl by following command.
+When you save the code, Figwheel detect that, build it and reflect it to browser.
 
 ```sh
-% lein dev                                                                                                                                                                                   (git)-[master]
+% lein dev
 Figwheel: Cutting some fruit, just a sec ...
 Figwheel: Validating the configuration found in project.clj
 Figwheel: Configuration Valid ;)
@@ -354,55 +348,58 @@ ClojureScript 1.10.339
 dev:cljs.user=>
 ```
 
-user.cljs を用意しているため、設定を取得したりシステムのリセットを repl から行うことも可能です。
+And as I created user.cljs as main namespace, we can get config, rewrite it and reset system in repl.
 
 ```sh
 dev:cljs.user=> @config
-#:re-integrant-app.module{:moment {:dev true},
-                          :router ["/" {"" :home, "about" :about}],
-                          :app
-                          {:mount-point-id "app",
-                           :routes
-                           {:key :re-integrant-app.module/router},
-                           :moment
-                           {:key :re-integrant-app.module/moment}}}
+{:re-integrant-app.module/moment {:dev true},
+ :re-integrant-app.module/router ["/" {"" :home, "about" :about}],
+ :re-integrant-app.module/app
+ {:mount-point-id "app",
+  :routes {:key :re-integrant-app.module/router},
+  :moment {:key :re-integrant-app.module/moment}}}
+dev:cljs.user=> (swap! config update-in [:re-integrant-app.module/moment :dev] not)
+{:re-integrant-app.module/moment {:dev false},
+ :re-integrant-app.module/router ["/" {"" :home, "about" :about}],
+ :re-integrant-app.module/app
+ {:mount-point-id "app",
+  :routes {:key :re-integrant-app.module/router},
+  :moment {:key :re-integrant-app.module/moment}}}
 dev:cljs.user=> (reset)
-#:re-integrant-app.module{:moment
-                          {:subs (:re-integrant-app.module.moment/now),
-                           :events
-                           (:re-integrant-app.module.moment/init
-                            :re-integrant-app.module.moment/halt
-                            :re-integrant-app.module.moment/fetch-now)},
-                          :router
-                          {:subs
-                           (:re-integrant-app.module.router/active-panel
-                            :re-integrant-app.module.router/route-params),
-                           :events
-                           (:re-integrant-app.module.router/init
-                            :re-integrant-app.module.router/halt
-                            :re-integrant-app.module.router/go-to-page
-                            :re-integrant-app.module.router/set-active-panel),
-                           :router
-                           {:history
-                            #object[pushy.core.t_pushy$core31221],
-                            :routes ["/" {"" :home, "about" :about}]}},
-                          :app
-                          {:subs (:re-integrant-app.module.app/title),
-                           :events
-                           (:re-integrant-app.module.app/init
-                            :re-integrant-app.module.app/halt
-                            :re-integrant-app.module.app/set-title),
-                           :container
-                           #object[HTMLDivElement [object HTMLDivElement]]}}
+{:re-integrant-app.module/moment
+ {:subs (:re-integrant-app.module.moment/now),
+  :events
+  (:re-integrant-app.module.moment/init
+   :re-integrant-app.module.moment/halt
+   :re-integrant-app.module.moment/fetch-now)},
+ :re-integrant-app.module/router
+ {:subs
+  (:re-integrant-app.module.router/active-panel
+   :re-integrant-app.module.router/route-params),
+  :events
+  (:re-integrant-app.module.router/init
+   :re-integrant-app.module.router/halt
+   :re-integrant-app.module.router/go-to-page
+   :re-integrant-app.module.router/set-active-panel),
+  :router
+  {:history #object[pushy.core.t_pushy$core31222],
+   :routes ["/" {"" :home, "about" :about}]}},
+ :re-integrant-app.module/app
+ {:subs (:re-integrant-app.module.app/title),
+  :events
+  (:re-integrant-app.module.app/init
+   :re-integrant-app.module.app/halt
+   :re-integrant-app.module.app/set-title),
+  :container #object[HTMLDivElement [object HTMLDivElement]]}}
 ```
 
-## まとめ
+## Summary
 
-re-frame+integrant を使って SPA を開発する方法について考えてみました。
-少し重厚なスタックではありますが、多くの依存関係と複雑なライフサイクルを持ち、プロファイルに応じて設定を変更する必要があるような SPA であれば採用する価値のある手法だと思います。
+In this post, I introduced how to develop ClojureScript Single Page Application by using the combination of integrant and re-frame.
+Although it is a little thick stack, you can adopt it to a complicated SPA that has a lot of depedencies, has complex lifecycle and need to change settings depending on profiles.
 
-## 参考
+## Refferences
 
-* [ClojureScript による SPA のモジュール分割](https://qiita.com/223kazuki/items/dd1af292a644e95a3085)
+* [How to modularize ClojureScript SPA](https://223kazuki.github.io/re-integrant.html)
 * [integrant](https://github.com/weavejester/integrant)
 * [re-frame doc](https://github.com/Day8/re-frame/blob/master/docs/README.md)
