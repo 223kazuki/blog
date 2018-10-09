@@ -1,6 +1,6 @@
 ---
-title: Playing with IPFS and ClojureScript
-description: Playing with IPFS and ClojureScript
+title: Using IPFS from ClojureScript SPA
+description: Using IPFS from ClojureScript SPA
 author: Kazuki Tsutsumi
 author-email: rixi223.kazuki@gmail.com
 author-url: https://twitter.com/goronao
@@ -22,56 +22,56 @@ tags:
  - integrant
 ---
 
-Ethereum DApp を開発していたときに IPFS に触れる機会があったので遊んでみました。
+Recentry I had a chance to use IPFS when I developed Ethereun DApp. So I played with it.
 
-リポジトリ
+Repository
 https://github.com/223kazuki/ipfs-chain
 
 ## IPFS
-InterPlanetary File System（惑星間ファイルシステム！）の略で P2P ハイパーメディアプロトコルの一種です。
+It stands for InterPlanetary File System. It is a kind of P2P hypermedia protocols.
 
 https://ipfs.io/
 
-IPFS はブロックチェーン同様、ネットワーク上に分散されたノード群から構成されます。
-ノードを自前で立てる場合は go 実装の go-ipfs を使うのが一般的です。
+IPFS consists of nodes that are distibuted among network as like Blockchain. If you want to run a node for yourself, it's common to use [go-ipfs](https://github.com/ipfs/go-ipfs).
 
-https://ipfs-book.decentralized-web.jp/install_ipfs/
+It's not so complex system from the viewpoint of an user.
 
-使う分にはそれほど複雑な仕組みではありません。
+1. IPFS generates hash when you upload file to it.
+2. You can ask the system to download the file with generated hash.
+3. If the node you ask does not have the target file, the node asks other nodes to transport it.
 
-1. ファイルをシステムにアップロードするとハッシュが生成される。
-2. ファイルをダウンロードするときは、生成されたハッシュで問い合わせをかける。
-3. 問い合わせたノードのリポジトリに該当ファイルが存在しない場合はネットワーク上で P2P 問い合わせを実行し、ファイルを転送してもらう。
-
-ハッシュはファイルに対して一意なため、ネットワーク上で重複することがありません。つまり、ハッシュさえ知っていればファイルをダウンロードすることが可能となります。ハッシュは Qmbqap913AY77BNX2aXGUpU7Q3Vmguu85KZQ3q6KTzGkXd のような感じです。
-
-Ethereum ノードを提供している [infura](https://infura.io/) が IPFS ノードを提供していたりするので、アップロードしたファイルにはブラウザからアクセスすることも簡単です。
+As the hash is unique to the file in the network, you can download it with the hash. The has is like Qmbqap913AY77BNX2aXGUpU7Q3Vmguu85KZQ3q6KTzGkXd.
+[infura](https://infura.io/) that provides Ethereum node as a service also provides IPFS node. So you can access the uploaded file from browser via internet easily.
 
 https://ipfs.infura.io/ipfs/[Hash]
 
-この様な特徴から次世代の Web を構成する技術の一つと見られています。
+Because of these characteristics, it's usually regarded as a technology which configures the next generation web.
 
 ## ClojureScript
 
-お馴染み、Clojure のサブセットとして開発される Alt-JS です。
-今回使うべき理由は特にありませんでしたが、[前回紹介した re-integrant という構成](https://qiita.com/223kazuki/items/ce1680dc54ff8fe4770c)を使って開発してみました。
+As you know, it's an alt-js language which is developed as sub set of clojure.
+Although there was no reason to adopt it for this case, I developed it with [re-integrant pattern]().
 
-## 作ったもの
+## What I developed
 
 https://ipfs.infura.io/ipfs/Qmbqap913AY77BNX2aXGUpU7Q3Vmguu85KZQ3q6KTzGkXd
 
-<img width="876" alt="スクリーンショット 2018-10-04 22.50.57.png" src="https://qiita-image-store.s3.amazonaws.com/0/109888/110a0ff2-be4e-b7d9-9ceb-1928f539be5c.png">
+<img width="876" alt="screenshot 2018-10-04 22.50.57.png" src="https://qiita-image-store.s3.amazonaws.com/0/109888/110a0ff2-be4e-b7d9-9ceb-1928f539be5c.png">
 
-ドメインから分かるように SPA 自体が IPFS 上にホストされています。
+As you can see its domain of url, this SPA itself is hosted on IPFS.
 
-使い方は簡単で、"Generate New Block" ボタンを押すだけ（しか出来ません）。ボタンを押してしばらくすると、同じ様な画面に遷移します。Previous Block のリンクから、前のページに戻ることが出来ます。
+The usage is so simple. All you can do is to click the button naned "Generate New Block". When you click it, it will move to another page that is almost same as the previous one. And you can move back to the prevous page by clicking the "Previous Block" link.
 
-特に面白みもありませんが、何をやっているかというと、実はボタンを押すたびに html ファイルを生成して IPFS にアップロードしています。そして、アップロード後にその html にリダイレクトしていくことで、IPFS 上を辿っていけるようになっているのです。毎回 URL のハッシュが少しずつ違うことに気づくと思います。
-つまり、SPA から SPA（正確には meta タグを書き換えた html）を生成しているのです。
+What happens when you click the button? It generates html as a string and uploads it to IPFS. Then it redirects to the uploaded html by generated hash. So you can see that the hash on URL changes each as it redirects.
+
+In other words, it is a SPA that generates itself! (Technically it just generates a html string with rewrited meta tag.)
 
 もちろん infura のノードに間借りしているわけではありますが、自サバ無しで Web サイトをホストできる IPFS の仕組みを利用してみました。
 
-## ClojureScript から ipfs-js-api を使う
+## Using ipfs-js-api in ClojureScript
+
+In order to access IPFS from web browser, it's general to use [ipfs-js-api](https://github.com/ipfs/js-ipfs-api).
+
 
 Web フロントエンドから IPFS を使う場合、ipfs-js-api を使うことが一般的です。
 特に良さそうな cljs ラッパーはなさそうでしたが、cljsjs パッケージは存在したため直接使ってみます。
@@ -93,7 +93,7 @@ ipfs-api インスタンス初期化用の設定を定義します。
   :ipfs #ig/ref :ipfs-chain.module/ipfs}}
 ```
 
-### 初期化
+### Initialization
 
 ipfs-api インスタンスを設定を使って初期化します。
 
@@ -146,7 +146,7 @@ View から `::ipfs/upload` イベントハンドラをディスパッチしま�
          previous-hash]])]))
 ```
 
-### イベントハンドラ
+### Event handler
 
 文字列をから Buffer オブジェクトを生成します。
 IPFS へのアップロードは副作用なので、副作用ハンドラ（`::add`）を呼び出します。
@@ -165,7 +165,7 @@ IPFS へのアップロードは副作用なので、副作用ハンドラ（`::
             :on-error on-error}})))
 ```
 
-### 副作用ハンドラ
+### Effect handler
 
 実際に ipfs-api を呼び出している箇所です。
 ハンドラは `::init` 時にすでに ipfs-api インスタンスを受け取っています。
@@ -207,13 +207,12 @@ on-success では生成されたハッシュを元に、infura ノードでホ�
          (set! js/location.href path)))))
 ```
 
-## まとめ
+## Summary
 
 IPFS を使って何か手軽に面白い事はできないかと考え、実用性度外視ですが、「自分自身を生成する Web サイト」を作ってみました。
 ClojureScript で作ったのは自分が使いやすい以外の理由はありませんでしたが、re-integrant 構成を使えば副作用やシステム一意なインスタンスを適切に管理できたのでいい感じでした。
 Clojure/Script ではこれまで「関数をどこに書くべきか」で悩むことが多かったのですが、re-integrant の様な構成を取ればそれが明確になってきて、より気持ちよく開発することが出来るようになった気がします。
 
-## 参考
+## Refferences
 
 * [IPFS](https://ipfs.io/)
-* [IPFS入門](https://ipfs-book.decentralized-web.jp/install_ipfs/)
