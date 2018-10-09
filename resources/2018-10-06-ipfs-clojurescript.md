@@ -56,7 +56,7 @@ Although there was no reason to adopt it for this case, I developed it with [re-
 
 https://ipfs.infura.io/ipfs/Qmbqap913AY77BNX2aXGUpU7Q3Vmguu85KZQ3q6KTzGkXd
 
-<img width="876" alt="screenshot 2018-10-04 22.50.57.png" src="https://qiita-image-store.s3.amazonaws.com/0/109888/110a0ff2-be4e-b7d9-9ceb-1928f539be5c.png">
+![cljs-ipfs.png](https://qiita-image-store.s3.amazonaws.com/0/109888/110a0ff2-be4e-b7d9-9ceb-1928f539be5c.png)
 
 As you can see its domain of URL, this SPA itself is hosted on IPFS.
 
@@ -203,5 +203,5 @@ The reason why I adopted ClojureScript was just for my convenience. But I could 
 
 ## References
 
-* [IPFS](https://ipfs.io/)
 * [Develop ClojureScript SPA with combination of integrant and re-frame](https://223kazuki.github.io/re-integrant-app.html)
+* [IPFS](https://ipfs.io/)
