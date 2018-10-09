@@ -22,7 +22,7 @@ tags:
  - integrant
 ---
 
-Recentry I had a chance to use IPFS when I developed Ethereun DApp. So I played with it.
+Recently I had a chance to use IPFS when I developed Ethereun DApp. So I played with it.
 
 Repository
 https://github.com/223kazuki/ipfs-chain
@@ -32,9 +32,9 @@ It stands for InterPlanetary File System. It is a kind of P2P hypermedia protoco
 
 https://ipfs.io/
 
-IPFS consists of nodes that are distibuted among network as like Blockchain. If you want to run a node for yourself, it's common to use [go-ipfs](https://github.com/ipfs/go-ipfs).
+IPFS consists of nodes that are distributed among network as like Blockchain. If you want to run a node for yourself, it's common to use [go-ipfs](https://github.com/ipfs/go-ipfs).
 
-It's not so complex system from the viewpoint of an user.
+It's not so complex system from the viewpoint of user.
 
 1. IPFS generates hash when you upload file to it.
 2. You can ask the system to download the file with generated hash.
@@ -50,7 +50,7 @@ Because of these characteristics, it's usually regarded as a technology which co
 ## ClojureScript
 
 As you know, it's an alt-js language which is developed as sub set of clojure.
-Although there was no reason to adopt it for this case, I developed it with [re-integrant pattern]().
+Although there was no reason to adopt it for this case, I developed it with [re-integrant pattern](https://223kazuki.github.io/re-integrant-app.html).
 
 ## What I developed
 
@@ -58,33 +58,26 @@ https://ipfs.infura.io/ipfs/Qmbqap913AY77BNX2aXGUpU7Q3Vmguu85KZQ3q6KTzGkXd
 
 <img width="876" alt="screenshot 2018-10-04 22.50.57.png" src="https://qiita-image-store.s3.amazonaws.com/0/109888/110a0ff2-be4e-b7d9-9ceb-1928f539be5c.png">
 
-As you can see its domain of url, this SPA itself is hosted on IPFS.
+As you can see its domain of URL, this SPA itself is hosted on IPFS.
 
-The usage is so simple. All you can do is to click the button naned "Generate New Block". When you click it, it will move to another page that is almost same as the previous one. And you can move back to the prevous page by clicking the "Previous Block" link.
+The usage is so simple. All you can do is to click the button named "Generate New Block". When you click it, it will move to another page that is almost same as the previous one. And you can move back to the previous page by clicking the "Previous Block" link.
 
 What happens when you click the button? It generates html as a string and uploads it to IPFS. Then it redirects to the uploaded html by generated hash. So you can see that the hash on URL changes each as it redirects.
 
-In other words, it is a SPA that generates itself! (Technically it just generates a html string with rewrited meta tag.)
-
-もちろん infura のノードに間借りしているわけではありますが、自サバ無しで Web サイトをホストできる IPFS の仕組みを利用してみました。
+In other words, it is a SPA that generates itself! (Technically it just generates a html string with rewritten meta tag.)
 
 ## Using ipfs-js-api in ClojureScript
 
-In order to access IPFS from web browser, it's general to use [ipfs-js-api](https://github.com/ipfs/js-ipfs-api).
-
-
-Web フロントエンドから IPFS を使う場合、ipfs-js-api を使うことが一般的です。
-特に良さそうな cljs ラッパーはなさそうでしたが、cljsjs パッケージは存在したため直接使ってみます。
-
-ipfs-api は re-integrant で言うところの module にラップします。
+In order to access IPFS from web browser, it's general to use [ipfs-js-api](https://github.com/ipfs/js-ipfs-api). Although there's no good wrapper library, there's cljsjs package. So I will try to use it.
+I use it as a re-integrant module. (Please read [previous post](https://223kazuki.github.io/re-integrant-app.html).)
 
 ### config.edn
 
-ipfs-api インスタンス初期化用の設定を定義します。
+It defines configurations for initialization of ipfs-api instance.
 
 ```clojure:config.edn
 {:ipfs-chain.module/ipfs
- {:protocol "https"      ;; module/ipfs に渡す config
+ {:protocol "https"      ;; configs for :module/ipfs
   :host "ipfs.infura.io" ;; ..
   :port 5001}            ;; ..
 
@@ -95,7 +88,7 @@ ipfs-api インスタンス初期化用の設定を定義します。
 
 ### Initialization
 
-ipfs-api インスタンスを設定を使って初期化します。
+Integrant initializes ipfs module.
 
 ```clojure:ipfs.cljs
 (require '[cljsjs.ipfs]
@@ -110,18 +103,17 @@ ipfs-api インスタンスを設定を使って初期化します。
   (let [[subs events effects] (->> [reg-sub reg-event reg-fx]
                                    (map methods)
                                    (map #(map key %)))
-        ipfs (js/IpfsApi (clj->js opts))] ;; ipfs-api インスタンスの初期化
+        ipfs (js/IpfsApi (clj->js opts))] ;; Initialized ipfs-api instance.
     (->> subs (map reg-sub) doall)
     (->> events (map reg-event) doall)
-    (->> effects (map #(reg-fx % ipfs)) doall) ;; 副作用ハンドラには ipfs-api インスタンスを渡しておく
+    (->> effects (map #(reg-fx % ipfs)) doall) ;; Passed ipfs-api instance to effect handlers.
     (re-frame/dispatch-sync [::init ipfs])
     {:subs subs :events events :effects effects}))
 ```
 
-### ファイルアップロード呼び出し
+### Call upload to IPFS
 
-View から `::ipfs/upload` イベントハンドラをディスパッチします。
-ここでは文字列として生成した html をアップロードすることにします。
+It dispatches `::ipfs/upload` from view when you press the button. It generates html as a string and passes it to handler.
 
 ```clojure:views.cljs
 (defn home-panel []
@@ -135,7 +127,7 @@ View から `::ipfs/upload` イベントハンドラをディスパッチしま�
         (str "Generated at " generated))]
      [sa/Button {:on-click
                  #(let [data (generate-html)]
-                    (re-frame/dispatch [::ipfs/upload-data data  ;; IPFS アップロードの呼び出し
+                    (re-frame/dispatch [::ipfs/upload-data data  ;; Dispatches upload handler.
                                         [:ipfs-chain.module.app/chain-on-ipfs]
                                         [:ipfs-chain.module.app/throw-error]]))}
       "Generate New Block"]
@@ -148,8 +140,7 @@ View から `::ipfs/upload` イベントハンドラをディスパッチしま�
 
 ### Event handler
 
-文字列をから Buffer オブジェクトを生成します。
-IPFS へのアップロードは副作用なので、副作用ハンドラ（`::add`）を呼び出します。
+It's dispatched from view. It generates a Buffer object from passed string. Then it calls effect handler (`::add`) because uploading to IPFS is side effect.
 
 ```clojure:ipfs.cljs
 (def buffer-from (aget js/buffer "Buffer" "from"))
@@ -167,9 +158,7 @@ IPFS へのアップロードは副作用なので、副作用ハンドラ（`::
 
 ### Effect handler
 
-実際に ipfs-api を呼び出している箇所です。
-ハンドラは `::init` 時にすでに ipfs-api インスタンスを受け取っています。
-`(js-invoke ipfs "add" buffer)` が Promise を返すので、then, catch でコールバックを渡します。
+This is where it actually calls ipfs-api. The handler has already had ipfs-api instance when it was initialized. As `(js-invoke ipfs "add" buffer)` returns a Promise object, it's necessary to pass callbacks to it.
 
 ```clojure:ipfs.cljs
 (defmethod reg-fx ::add [k ipfs]
@@ -185,7 +174,7 @@ IPFS へのアップロードは副作用なので、副作用ハンドラ（`::
                       (re-frame/dispatch (vec (conj on-error err))))))))))
 ```
 
-on-success では生成されたハッシュを元に、infura ノードでホストされる html ファイルにリダイレクトするようにしています。
+I've already passed on-success callback when dispatching handler. On-success handler makes infura URL from generated hash and redirects to it.
 
 ```clojure:app.cljs
 ;; Event
@@ -209,10 +198,10 @@ on-success では生成されたハッシュを元に、infura ノードでホ�
 
 ## Summary
 
-IPFS を使って何か手軽に面白い事はできないかと考え、実用性度外視ですが、「自分自身を生成する Web サイト」を作ってみました。
-ClojureScript で作ったのは自分が使いやすい以外の理由はありませんでしたが、re-integrant 構成を使えば副作用やシステム一意なインスタンスを適切に管理できたのでいい感じでした。
-Clojure/Script ではこれまで「関数をどこに書くべきか」で悩むことが多かったのですが、re-integrant の様な構成を取ればそれが明確になってきて、より気持ちよく開発することが出来るようになった気がします。
+In this post, I developed "Self-generating SPA" by using IPFS and ClojureScript. Though it has no practicality, IPFS has a lot of possibilities.
+The reason why I adopted ClojureScript was just for my convenience. But I could handle side effects and system instance with re-integrant pattern. So I can also recommend to use ClojureScript for IPFS development.
 
-## Refferences
+## References
 
 * [IPFS](https://ipfs.io/)
+* [Develop ClojureScript SPA with combination of integrant and re-frame](https://223kazuki.github.io/re-integrant-app.html)
