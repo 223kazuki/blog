@@ -9,6 +9,7 @@
   (layout config
           (let [{:keys [title tags date-published content]} entry]
             [:div.post
+             [:img {:src "https://pbs.twimg.com/profile_images/927415477944573952/K7qwI-7f.jpg" :style "display: none"}]
              [:h1 title]
              [:div.fit.clearfix
               [:time.left (f/unparse formatter (c/from-date date-published))]
