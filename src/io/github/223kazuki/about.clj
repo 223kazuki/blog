@@ -5,9 +5,13 @@
   (layout config
           [:div.about.fit
            [:p.h1 "About"]
-           [:ul
-            [:li "Kazuki Tsutsumi / 堤 一樹"]
-            [:li "Clojure Engineer"]]
+           [:div.clearfix
+            [:div.sm-col.sm-col-12.md-col-3
+             [:img {:width "100%" :src "/images/me.jpg"}]]
+            [:div.sm-col.sm-col-12.md-col-9
+             [:ul
+              [:li "Kazuki Tsutsumi / 堤 一樹"]
+              [:li "Clojure Engineer"]]]]
            [:p.h2 "Career"]
            [:table.col-12
             [:tr
@@ -18,7 +22,8 @@
              [:td "System Engineer @ Tokyo"]]
             [:tr
              [:td "Apr/2012 - Now"]
-             [:td "General Manager @ Kokugakuin University Sumo Club / 國學院大學相撲部監督"]]
+             [:td (str "General Manager @ Kokugakuin University Sumo Club"
+                       " / 國學院大學相撲部監督")]]
             [:tr
              [:td "Apr/2010 - Mar/2012"]
              [:td "Tokyo Institute of Technology (Astrophysics)"]]
@@ -29,7 +34,8 @@
            [:ul
             [:li "Twitter: " [:a {:href "//twitter.com/goronao"} "@goronao"]]
             [:li "GitHub: " [:a {:href "//github.com/223kazuki"} "223kazuki"]]
-            [:li "Slide Share: " [:a {:href "//www.slideshare.net/ssuser8b0ea4"} "Kazuki Tsutsumi"]]]
+            [:li "Slide Share: " [:a {:href "//www.slideshare.net/ssuser8b0ea4"}
+                                  "Kazuki Tsutsumi"]]]
            [:p.h2 "Skills/Interests"]
            [:ul
             [:li "Clojure / ClojureScript"]

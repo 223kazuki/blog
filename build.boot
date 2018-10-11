@@ -53,7 +53,7 @@
         (static :renderer 'io.github.223kazuki.about/render :page "about.html")
         (inject-scripts :scripts #{"start.js"})
         (sitemap :out-dir "./")
-        (rss :description "223 log" :out-dir "./")
+        (rss :description "223 Log" :out-dir "./")
         (atom-feed :filterer :original :out-dir "./")
         (print-meta)
         (target :dir #{"../223kazuki.github.io"} :no-clean true)
