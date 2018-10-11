@@ -3,7 +3,7 @@ title: Develop ClojureScript SPA with combination of integrant and re-frame
 description: "In this post, I'll introduce how to develop ClojureScript Single Page Application by using the combination of integrant and re-frame.
 
 I also introduced that in [the previous post](https://223kazuki.github.io/re-integrant.html). But as the previous example was special case, Ethereum DApp, it was a little complex to understand. So I develop an example again in pure cljs."
-image: https://pbs.twimg.com/profile_images/927415477944573952/K7qwI-7f_400x400.jpg
+image: https://223kazuki.github.io/images/me.jpg
 author: Kazuki Tsutsumi
 author-email: rixi223.kazuki@gmail.com
 author-url: https://twitter.com/goronao

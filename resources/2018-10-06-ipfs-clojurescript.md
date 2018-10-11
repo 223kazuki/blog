@@ -4,7 +4,7 @@ description: "Recently I had a chance to use IPFS when I developed Ethereun DApp
 
 Repository
 https://github.com/223kazuki/ipfs-chain"
-image: https://pbs.twimg.com/profile_images/927415477944573952/K7qwI-7f_400x400.jpg
+image: https://223kazuki.github.io/images/me.jpg
 author: Kazuki Tsutsumi
 author-email: rixi223.kazuki@gmail.com
 author-url: https://twitter.com/goronao

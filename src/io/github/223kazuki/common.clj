@@ -17,6 +17,7 @@
                    :content "width=device-width, initial-scale=1.0, user-scalable=no"}]
            [:meta {:name "twitter:card" :content "summary"}]
            [:meta {:name "twitter:title" :content (-> ~config :post :title)}]
+           [:meta {:name "twitter:creator" :content (-> ~config :post :author-twitter)}]
            [:meta {:name "twitter:description" :content (-> ~config :post :description)}]
            [:meta {:name "twitter:image" :content (-> ~config :post :image)}]
            [:link {:href "/css/normalize.css" :rel "stylesheet"}]

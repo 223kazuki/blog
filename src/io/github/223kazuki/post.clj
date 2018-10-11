@@ -4,11 +4,12 @@
             [clj-time.coerce :as c]))
 
 (defn render [{:keys [entry] :as config}]
-  (let [{:keys [title image description tags date-published content]} entry]
+  (let [{:keys [title image description author-twitter tags date-published content]} entry]
     (layout (assoc config :post
                    {:title title
                     :image image
-                    :description description})
+                    :description description
+                    :author-twitter author-twitter})
             [:div.post
              [:h1 title]
              [:div.fit.clearfix
