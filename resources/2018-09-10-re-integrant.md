@@ -1,6 +1,10 @@
 ---
 title: How to modularize ClojureScript SPA
-description: How to modularize ClojureScript SPA
+description: "In this post, I will introduce a pattern to modularize Single Page Application written in ClojureScript.
+Sample project is bellow.
+
+https://github.com/223kazuki/cljs-dapp"
+image: https://pbs.twimg.com/profile_images/927415477944573952/K7qwI-7f_400x400.jpg
 author: Kazuki Tsutsumi
 author-email: rixi223.kazuki@gmail.com
 author-url: https://twitter.com/goronao

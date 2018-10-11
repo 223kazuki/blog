@@ -3,7 +3,7 @@
 
 (defn render [{global-meta :meta posts :entries entry :entry :as config}]
   (layout config
-    [:h1 (str "Page " (:page entry))]
-     [:ul.items.columns.small-12
-      (for [post posts]
-        [:li (:title post)])]))
+          [:h1 (str "Page " (:page entry))]
+          [:ul.items.columns.small-12
+           (for [post posts]
+             [:li (:title post)])]))

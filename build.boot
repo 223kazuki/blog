@@ -1,11 +1,11 @@
 (set-env!
-  :source-paths #{"src"}
-  :resource-paths #{"resources"}
-  :target-path #{"../223kazuki.github.io"}
-  :dependencies '[[perun "0.4.2-SNAPSHOT"]
-                  [hiccup "1.0.5"]
-                  [pandeiro/boot-http "0.6.3-SNAPSHOT"]
-                  [clj-time "0.14.0"]])
+ :source-paths #{"src"}
+ :resource-paths #{"resources"}
+ :target-path #{"../223kazuki.github.io"}
+ :dependencies '[[perun "0.4.2-SNAPSHOT"]
+                 [hiccup "1.0.5"]
+                 [pandeiro/boot-http "0.8.3"]
+                 [clj-time "0.14.0"]])
 
 (require '[clojure.string :as str]
          '[io.perun :refer :all]

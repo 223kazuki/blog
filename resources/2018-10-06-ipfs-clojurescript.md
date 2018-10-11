@@ -1,6 +1,10 @@
 ---
 title: Using IPFS from ClojureScript SPA
-description: Using IPFS from ClojureScript SPA
+description: "Recently I had a chance to use IPFS when I developed Ethereun DApp. So I played with it.
+
+Repository
+https://github.com/223kazuki/ipfs-chain"
+image: https://pbs.twimg.com/profile_images/927415477944573952/K7qwI-7f_400x400.jpg
 author: Kazuki Tsutsumi
 author-email: rixi223.kazuki@gmail.com
 author-url: https://twitter.com/goronao
