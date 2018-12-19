@@ -26,13 +26,17 @@ tags:
 In this post, I will introduce how to try pair programming with Clojure REPL.
 
 ## What's Party REPL
-いつも最善とは言えませんが、ペアプログラミングの効能は広く浸透しています。現在、モダンなエディタはリモートでの共同編集機能をサポートしており一台の端末の前に二人座って行う必要もなく、ペアプログラミングの環境は満足のいくものとなりつつあります。しかし、それを一段押し進めて「動作しているアプリケーション」を直接、ペアプログラミングで開発できるとしたらいかがでしょうか。
+Although pair programming is not a silver vallet, it is effective in many situation. Recently most of modern editors support the remote editing feature. So it's not necessary to sit together in front of the PC in order to do pair programming.
+But how do you feel if you can do pair programming on "running application".?
 
-出来るんです **Clojure** なら！[clojure/conj](https://qiita.com/223kazuki/items/ee7f62c495796337246f) で紹介された [Party REPL](https://github.com/party-repl) を使えば実現できます。
+Yes, you can! ...if you use clojure.
+[Party REPL](https://github.com/party-repl) that was introduced in [clojure/conj 2018](http://2018.clojure-conj.org/) enables you to do that.
 [![Party REPL — A multi-player REPL built for pair-programming](http://img.youtube.com/vi/AJING0Vigpg/0.jpg)](https://www.youtube.com/watch?v=AJING0Vigpg)
-Paty REPL は ClojureScript と shadow-cljs で開発される Atom のプラグインで、TeleType と組み合わせることで「動作しているアプリケーション」のペアプログラミング開発を実現します。現状（v1.1.0）Linux/Mac に対応しており、leiningen で起動した nrepl, unrepl (, socket REPL) が使えます。この記事では Paty REPL の導入と使い方についてご紹介します。
+Party REPL is Atom editor plugin that is developed by using cljs and shadow-cljs. If you use it with TeleType that is also Atom plugin for pair programming, it enables to do pair programming on running application.
+It is now version 1.0. And it supports Linux/Mac. You can use it with nrepl and unrepl(socket REPL) launched by leiningen.
+I will introduce how to install and how to use it in this post.
 
-### TeleType
+n### TeleType
 TeleType は Atom のペアプログラミング用プラグインで、リアルタイムにファイルの共同編集を行なえます。使用するには Github による認証が必要ですが、編集時は WebRTC により PC 同士が直接接続されます。CRDT: Conflict-free Replicated Data Types という編集方式を取っており、編集内容の衝突も起こらない（らしい）です。
 
 ### About Clojure REPL
