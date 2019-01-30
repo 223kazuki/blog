@@ -73,7 +73,7 @@ The abstract of configration map is as follow.
     ["/token"      :post [#ig/ref :graphql-server.handler.auth/token] :route-name :token]
     ["/introspect" :get  [#ig/ref :graphql-server.handler.auth/introspect] :route-name :introspect]
     ["/graphql"    :options [#ig/ref :graphql-server.handler.cors/preflight] :route-name :preflight]]
-   :schema #ig/ref :graphql-server.lacinia/schema ;; Lacinia スキーマ定義
+   :schema #ig/ref :graphql-server.lacinia/schema ;; Lacinia schema
    :resolvers {:get-viewer #ig/ref :graphql-server.handler.resolver/get-viewer ;; lacinia resolvers
                :user-favorite-rikishis #ig/ref :graphql-server.handler.resolver/user-favorite-rikishis
                :get-favorite-rikishis #ig/ref :graphql-server.handler.resolver/get-favorite-rikishis
@@ -147,16 +147,18 @@ The implementation of `:graphql-server.lacinia/service` method is as follows.
 
 It compose service map by `com.walmartlabs.lacinia.pedestal/service-map` from parameters and pass it to `:duct.server/pedestal`. Then `:duct.server/pedestal` starts server.
 
-## Implement authentication for GraphQL API
-そもそも GraphQL の認証ってどうやるんだっけという点からよくわかってませんでした。GraphQL 自体が何らかの仕様を定めてくれているのかと思いましたが、GraphQL はあくまでデータアクセスの仕様に過ぎず、そういったものは存在しないようです。lacinia-pedestal も認証周りの機能は特に持たないため自分で実装する必要があります。また、GraphQL は接続方法として HTTP と WebSocket 両方サポートするため、それぞれで認証方法を考える必要があります。
+## Implement authentication for GraphQL API access
+As GraphQL is just a specification of data access, there's no specification about authentication. Lacinia also doesn't have any function of authentication. So we have to implement it by ourselves. Then we have to implement it in two access methods, HTTP and WebSocket, because GraphQL supports both of them.
 
-GitHub GraphQL API の認証を参考にすると HTTP 通信時の認証はトークンベースだったので、今回は OAuth2 によるトークンベースの認証を採用しようと思います。
+According to GitHub GraphQL API, it provides token based authentication.
 https://developer.github.com/v4/guides/forming-calls/#authenticating-with-graphql
 
-OAuth2 実装部は[以前作成したもの](https://github.com/223kazuki/clj-oauth-server)の使いまわしのため詳述しません。[src/graphql_server/handler/auth.clj](https://github.com/223kazuki/clj-graphql-server/blob/master/src/graphql_server/handler/auth.clj) で OAuth2 のフローに従ってアクセストークンを発行し、[auth コンポーネント](https://github.com/223kazuki/clj-graphql-server/blob/master/src/graphql_server/auth.clj)でそれを管理します。認証関連ハンドラは `:graphql-server.lacinia/service` に `:optional-routes` という形で挿入しています。
+So I decided to apply OAuth 2.0 authentication for API access.
+
+I've already implement [OAuth 2.0 authentication in duct](https://github.com/223kazuki/clj-oauth-server) before. So I use it and don't explain itself in this post. But to put it briefly, I implemented OAuth 2.0 handlers in [clj-graphql-server/src/graphql_server/handler/auth.clj](https://github.com/223kazuki/clj-graphql-server/blob/master/src/graphql_server/handler/auth.clj) and manage access token in [clj-graphql-server/src/graphql_server/auth.clj](https://github.com/223kazuki/clj-graphql-server/blob/master/src/graphql_server/auth.clj). Auth handlers are injected to `:graphql-server.lacinia/service` by `:optional-routes` key.
 
 ### Authencication check for HTTP access
-HTTP アクセスの場合、認証チェックは interceptor で行います。下記が認証を行う interceptor です。
+Then where should we implement authentication check? When an authented client posts HTTP request to GraphQL API, we should implement it in incerceptor. I implemented it as follows.
 
 ```clojure:src/graphql_server/interceptors.clj
 (defmethod ig/init-key ::auth [_ {:keys [:auth]}]
@@ -167,70 +169,71 @@ HTTP アクセスの場合、認証チェックは interceptor で行います�
                                                 "Access-Control-Allow-Origin" (get headers "origin")}
                                       :body (json/write-str {:errors [{:message "Forbidden"}]})}]
               (if-not (and (= uri "/graphql")
-                           (= request-method :post)) ;; 認証する対象は GraphQL API への POST のみ
+                           (= request-method :post)) ;; Authenticate only GraphQL endpoint.
                 context
-                (if-let [access-token (some-> headers ;; リクエストヘッダからトークンを取得
+                (if-let [access-token (some-> headers
                                               (get "authorization")
                                               (str/split #"Bearer ")
                                               last
-                                              str/trim)]
-                  (if-let [auth-info (auth/get-auth auth access-token)] ;; auth コンポーネントから認証情報取得
-                    (assoc-in context [:request :auth-info] auth-info) ;; 認証情報が見つかればコンテキストにセット
-                    (assoc context :response forbidden-response)) ;; 認証情報がなければ Forbidden を返す
-                  (assoc context :response forbidden-response)))))}) ;; トークンがなければ Forbidden を返す
+                                              str/trim)] ;; Get access token from request headers.
+                  (if-let [auth-info (auth/get-auth auth access-token)] ;; Get auth info by access token.
+                    (assoc-in context [:request :auth-info] auth-info) ;; Set it to context if auth info that inclues login user info.
+                    (assoc context :response forbidden-response)) ;; Return forbidded response if no auth info.
+                  (assoc context :response forbidden-response)))))}) ;; Return forbidded response if no token.
 ```
 
-この interceptor は `:graphql-server.lacinia/service` コンポーネントで `:optional-interceptors` という形で設定出来るようにしています。認証チェックに成功した場合、auth コンポーネントで管理する認証情報を、コンテキストにセットして後続の処理（resolver）から利用できるようにします。
+This interceptor is injected to `:graphql-server.lacinia/service` by `:optional-interceptors` key. It gets access token from request headers, gets auth info by token, sets auth info to context and returns context. So following procedures like resolver can use auth info via context.
 
 ```clojure:src/graphql_server/handler/resolver.clj
 (defmethod ig/init-key ::get-viewer [_ {:keys [auth db]}]
   (fn [{request :request :as ctx} args value]
-    (let [{:keys [id email-address]} (get-in request [:auth-info :client :user])] ;; 認証情報を resolver から利用
+    (let [{:keys [id email-address]} (get-in request [:auth-info :client :user])] ;; Use auth info via context.
       (->Lacinia {:id id :email-address email-address}))))
 ```
 
 ### Authencication check for WebSocket access
-WebSocket により接続する場合は、ハンドシェイク時にトークンを渡して認証チェックする方法が一般的です。トークンは同様にヘッダー経由で渡せますが、クライアントライブラリの実装によってはヘッダを設定できない可能性があるため、今回は URL パラメータとして渡すことにします。
+When an authented client tried to access GraphQL API by WebSocket, it's common to check token in Handshake. Although WebSocket Handshake request also be able to pass access token in request headers, some client libraries don't support it. So I chose the way passing access token as a URL parameter.
 
 `GET http://localhost:8080/graphql-ws?token=xxxxxxxxxxx`
 
-lacinia-pedestal は WebSocket のハンドシェイク時に呼び出されるコンテキスト処理化関数を設定出来るようになっているため、その関数内で認証チェックを行います。
+And lacinia-pedestal has `:init-context` parameter to set a function to initialize context in WebSocket HandShake. So we can implement token check there.
 
 ```clojure:src/graphql_server/handler/auth.clj
 (defmethod ig/init-key ::ws-init-context [_ {:keys [auth]}]
   (fn [ctx ^UpgradeRequest req ^UpgradeResponse res]
-    (if-let [access-token (some->> (.get (.getParameterMap req) "token") ;; URL パラメータからアクセストークン取り出し
+    (if-let [access-token (some->> (.get (.getParameterMap req) "token") ;; Get access token from URL parameter.
                                    first)]
       (if-let [auth-info (auth/get-auth auth access-token)]
-        (assoc-in ctx [:request :lacinia-app-context :request :auth-info] auth-info) ;; resolver に情報を渡すには [:request :lacinia-app-context] 以下にセットする必要がある
+        (assoc-in ctx [:request :lacinia-app-context :request :auth-info] auth-info) ;; We have to set auth info in [:request :lacinia-app-context] in this case.
         (do
-          (.sendForbidden res "Forbidden") ;; org.eclipse.jetty.websocket.api.UpgradeResponse に接続拒否を設定
+          (.sendForbidden res "Forbidden") ;; Set forbidden to org.eclipse.jetty.websocket.api.UpgradeResponse.
           ctx))
       (do
         (.sendForbidden res "Forbidden")
         ctx))))
 ```
 
-これを `com.walmartlabs.lacinia.pedestal/service-map` のオプションに `:init-context` キーで渡せば、認証チェックを実現できます。
-後続の処理（resolver, streamer）で認証情報を利用するためには同様にコンテキストにセットすればよいですが、lacinia-pedestal の実装のせいでコンテキスト以下 `[:request :lacinia-app-context]` に設定した情報しか渡らないようになっており、かつ default-subscription-interceptors に含まれる `:com.walmartlabs.lacinia.pedestal.subscriptions/inject-app-context` という interceptor により `:lacinia-app-context` が初期化されてしまいます。そのため、lacinia-pedestal のサービス初期化時にこの interceptor を除外する必要があります。
+This function is injected to `:graphql-server.lacinia/service` by `:init-context` key. 
+In order to use auth info in resolver, we have to set it in context. But according to lacinia-pedestal implementation, only `(get-in context [:request :lacinia-app-context])` will be passed to resolvers. And `lacinia-app-context` will be overwritten by `:com.walmartlabs.lacinia.pedestal.subscriptions/inject-app-context`. 
+So we have to remove this interceptor, and set auth info under `[:request :lacinia-app-context]` keys in context.
 
 ```clojure:src/graphql_server/lacinia.clj
         subscription-interceptors (->> [exception-handler-interceptor
                                         send-operation-response-interceptor
                                         (query-parser-interceptor compiled-schema)
-                                        execute-operation-interceptor] ;; default-subscription-interceptors から inject-app-context を除外
+                                        execute-operation-interceptor] ;; Remove inject-app-context from default-subscription-interceptors.
                                        (concat optional-subscription-interceptors)
                                        (map interceptor/map->Interceptor)
                                        (into []))
 ```
 
-やや面倒ですが、これにより HTTP 通信時と同様に認証チェックし、後続の resolver, streamer でユーザ情報を使えるようになります。
+In this way, we can check authentication in WebSocket Handshake and use auth info in resolvers and streamers.
 
 ```clojure:src/graphql_server/handler/streamer.clj
 (defmethod ig/init-key ::stream-torikumis [_ {:keys [db channel]}]
   (fn [{request :request :as ctx} {:keys [num]} source-stream]
     (println "Start subscription.")
-    (let [{:keys [id]} (get-in request [:auth-info :client :user]) ;; 認証情報取り出し
+    (let [{:keys [id]} (get-in request [:auth-info :client :user]) ;; Get auth info from context.
           torikumis (db/find-torikumis db id num)]
       ;; ...
   )))
