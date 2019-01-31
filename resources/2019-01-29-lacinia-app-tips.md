@@ -14,7 +14,7 @@ date-modified: 2019-01-29
 date-published: 2019-01-29
 headline:
 in-language: en
-keywords: Clojure, ClojureScript, Lacinia, GraphQL, re-frame, integrant
+keywords: Clojure, ClojureScript, Lacinia, GraphQL, re-frame, integrant, hodur
 uuid: 123b5035-6286-4b20-b544-758765c380a6
 tags:
  - Clojure
@@ -23,6 +23,7 @@ tags:
  - GraphQL
  - re-frame
  - integrant
+ - hodur
 ---
 
 Recently, I tried Lacinia because many clojurians and companies begin to use it. It's one of the most exciting clojure library today. I'm very fascinated by it. But while developing Lacinia application, I also met some difficulties. In this post, I introduce how I resolved those difficulties as Tips for lacinia app development. As I don't intend to introduce Lacinia itself, I don't explain whant Lacinia is. Please read [Lacinia document](https://lacinia.readthedocs.io/en/latest/) and try tutorial first.
@@ -240,7 +241,7 @@ In this way, we can check authentication in WebSocket Handshake and use auth inf
 ```
 
 ## Connect to Datomic
-Lacinia に直接関係ないですが、データ永続化層にはせっかくなので Datomic を使ってみることにしました。module.sql を参考に module.datomic を実装します。
+I use Datomic as data persistence layer. In order to use it in duct, I implemented module.datomic by refering to module.sql.
 
 ```clojure:src/duct/module/datomic.clj
 (ns duct.module.datomic
@@ -278,20 +279,15 @@ Lacinia に直接関係ないですが、データ永続化層にはせっかく
      (migrator-config (get-environment config options)))))
 ```
 
-このモジュールによりコネクション情報を保持した `duct.database/datomic` コンポーネントが生成されるので、config.edn 上で resolver, streamer から参照させれば Datomic アクセスを実現できます。
+This module inject `:duct.database/datomic` key that has connection to Datomic. So we can use it to access Datomic in resolvers or streamers.
 
 ```clojure:resources/geraphql_server/config.edn
-  :graphql-server.handler.resolver/get-viewer {:auth #ig/ref :graphql-server/auth}
-  :graphql-server.handler.resolver/user-favorite-rikishis {:db #ig/ref :duct.database/datomic}
-  :graphql-server.handler.resolver/get-favorite-rikishis {:db #ig/ref :duct.database/datomic}
-  ;;...
-  :graphql-server.handler.streamer/stream-torikumis {:db #ig/ref :duct.database/datomic
-                                                     :channel #ig/ref :graphql-server/channel}
+  :graphql-server.handler.resolver/user-favorite-rikishis {:db #ig/ref :duct.database/datomic} ;; Refer to datomic key.
 ```
 
-Datomic アクセスは boundary として抽象化しますが、Datomic のトランザクションは Clojure のマップとして発行できるので、Lacinia との相性は抜群です。また、Datomic は GraphQL の表現力の高さを十分に活かせる柔軟性があり、例えば下記のクエリでは「あるユーザのお気に入り力士のいずれかが東西のどちらかに含まれている全ての取り組み」を取得するクエリです。多対多の結合をこれほどシンプルに書けるのは Datalog クエリならではですね。
+Thoush I adstract Datomic access as a boundary, Datomic transaction and Lacinia paramters are both just a clojure data. So they are very compatible. And Datomic query has enough flexibility to accept expressive power of GraphQL query. Following query means "Get all torikumis which has rikishi which an user added to his favorite". ("Torikumi" means a sumo match between rikishi in "higashi" and rikishi in "nishi".) It's surprising that Datalog can easily express such a complicated query among many-to-many entities.
 
-```clojure:user.clj
+```clojure
 (d/q '[:find ?e
        :in $ ?user
        :where (or (and [?e :torikumi/higashi ?higashi]
@@ -304,12 +300,13 @@ Datomic アクセスは boundary として抽象化しますが、Datomic のト
 ```
 
 ## Commonize schema definition
-Datomic は Lacinia と同様にスキーマ定義が必要です。そうなると必然としてスキーマ定義の共通化と自動生成が欲しくなってきます。
-
-[以前の記事](https://qiita.com/223kazuki/items/ba4ba84e2da1daea3b52)では [umlaut](https://github.com/workco/umlaut) というライブラリを使ってスキーマ定義の共通化を行いましたが、昨年の clojure/conj では新たにドメイン駆動開発のツールとして各種スキーマの自動生成が行える [hodur](https://github.com/luchiniatwork/hodur-engine) が紹介されました。
+Datomic needs schema as with Lacinia. Consequently we want to commonize them and generate automatically. I tried [umlaut](https://github.com/workco/umlaut) before to that. But I found another tool, [hodur](https://github.com/luchiniatwork/hodur-engine) in last clojure/conj.
 [![Declarative Domain Modeling for Datomic Ion/Cloud](http://img.youtube.com/vi/EDojA_fahvM/0.jpg)](https://www.youtube.com/watch?v=EDojA_fahvM)
 
-実現できることに大きな違いはありませんが、敢えて違いを上げるのであれば umlaut では共通スキーマを GraphQL ライクな形式のファイルで定義するのに対し、hodur では edn として clojure のデータ構造で定義出来ることでしょうか。hodur は内部的には [datascript](https://github.com/tonsky/datascript) により中間データベース（meta-db）を生成し、datalog クエリで各スキーマ生成に必要な情報を取り出しているようです。下記が hodur の共通スキーマ定義ファイルです。
+It's a domain modeling tool which can generate various schema definitions.
+Although there are not so many differences among them, hodur can define model definition as edn in contrast to umlaut's GraphQL like definition.
+Hodur uses [datascript](https://github.com/tonsky/datascript) internaly to generate meta-database. And each plugins queries it to generate their schemas.
+The following is the model definition of horndur.
 
 ```clojure:resources/graphql_server/schema.edn
 [^{:lacinia/tag true
@@ -348,12 +345,13 @@ Datomic は Lacinia と同様にスキーマ定義が必要です。そうなる
 ]
 ```
 
-Datomic や Lacinia などそれぞれのタグとして使うかはメタデータ内で `:[plugin]/tag` キーにより制御します。その他、それぞれの対象でしか存在しない定義（Lacinia の resolver 指定など）も `:[plugin]/*` キーで指定します。共通スキーマが edn であることで duct 的には config ファイルから直接 include 出来るのが少しうれしいです。
+Which model each plugins use is controlled by `:[plugin]/tag` key in their meta data. And other meta data for each plugins are defined `:[plugin]/*` kies. For example, lacinia resolver name is defined `:lacinia/resolver` key.
+As the model definition is edn, we can include it directly from config.edn
 
 ```clojure:resources/graphql_server/config.edn
-  :graphql-server/hodur {:schema #duct/include "graphql_server/schema"} ;; schema.edn 定義ファイルを直接 include
-  :graphql-server.datomic/schema {:meta-db #ig/ref :graphql-server/hodur} ;; Datomic schema 生成
-  :graphql-server.lacinia/schema {:meta-db #ig/ref :graphql-server/hodur} ;; Lacinia schema 生成
+  :graphql-server/hodur {:schema #duct/include "graphql_server/schema"} ;; Include schema.edn directly
+  :graphql-server.datomic/schema {:meta-db #ig/ref :graphql-server/hodur} ;; Generate Datomic schema
+  :graphql-server.lacinia/schema {:meta-db #ig/ref :graphql-server/hodur} ;; Generate Lacinia schema
 ```
 
 ```clojure:src/graphql_server/hodur.clj
@@ -364,13 +362,13 @@ Datomic や Lacinia などそれぞれのタグとして使うかはメタデー
 (defmethod ig/init-key :graphql-server/hodur [_ {:keys [schema]}]
   #_ (binding [*print-meta* true]
        (pr schema))
-  (hodur/init-schema schema)) ;; meta-db 生成
+  (hodur/init-schema schema)) ;; Generate meta-db
 ```
 
-Lacinia と Datomic のスキーマ定義のエンティティは共に参照型を許容するため、殆どそのまま互いに使うことが可能です。ただし、一点、GraphQL スキーマは循環参照を許容するのに対し、Datomic は許容しません。そのため、上記の例で言うと、力士（rikishi）は所属相撲部屋（sumobeya）参照を持ち、相撲部屋（sumobeya）は所属力士（rikishis）参照を持ちますが、Datomic では sumobeya/rikishis は `:datomic/tag false` により除外しています。
+Because both Lacinia and Datomic allow reference type in their schema definition, we can almost same entity models. But GraphQL accepts circular reference while Datomic doesn't. So we have to set `:datomic/tag false` in one side of refference attribute.
 
 ### Generate Lacinia schema
-Lacinia プラグインを使うことで hodur の meta-db から Lacinia スキーマを生成できます。
+By using Lacinia plugin, we can generate Lacinia schema from hodur meta-db.
 https://github.com/luchiniatwork/hodur-lacinia-schema
 
 ```clojure:src/graphql_server/lacinia.clj
@@ -379,7 +377,7 @@ https://github.com/luchiniatwork/hodur-lacinia-schema
       hodur-lacinia/schema))
 ```
 
-生成したスキーマは `:graphql-server.lacinia/service` コンポーネントから参照してコンパイルして利用します。
+Generated schema is as follows.
 
 ```clojure
 {:objects
@@ -448,14 +446,18 @@ https://github.com/luchiniatwork/hodur-lacinia-schema
    :args {:num {:type (non-null Int)}}}}}
 ```
 
+The method implemented by `:graphql-server.lacinia/service` key referes this schema and compiles it.
+
 ### Migrate Datomic schema
-Datomic プラグインを使うことで、hodur の meta-db から Datomic スキーマを生成します。
+By using Datomic plugin, we can generate Datomic schema from hodur meta-db.
 https://github.com/luchiniatwork/hodur-datomic-schema
 
 ```clojure:src/graphql_server/datomic.clj
 (defmethod ig/init-key ::schema [_ {:keys [meta-db]}]
-  (hodur-datomic/schema meta-db)) ;; meta-db から Datomic スキーマを生成
+  (hodur-datomic/schema meta-db)) ;; Generate Datomic schema
 ```
+
+Generated schema is as follows.
 
 ```clojure
 [#:db{:ident :mutation-root/create-rikishi,
@@ -513,12 +515,12 @@ https://github.com/luchiniatwork/hodur-datomic-schema
  ...]
 ```
 
-migrator.datomic を実装し、生成したスキーマをトランザクションに渡すことで Datomic に登録します。
+In order to migrate it to Datomic, I implemented migrator.datomic.
 
 ```clojure:src/duct/migrator/datomic.clj
 (defmethod ig/init-key :duct.migrator/datomic [_ {:keys [database schema migrations]
                                                   :as options}]
-  (d/transact (:connection database) schema) ;; 上記で生成したスキーマをトランザクションとして発行
+  (d/transact (:connection database) schema) ;; Migrate schema as transaction.
   (->> migrations
        (map :up)
        (map #(d/transact (:connection database) %))
@@ -527,10 +529,12 @@ migrator.datomic を実装し、生成したスキーマをトランザクショ
 ```
 
 ### Visualize schema
-hodur は動的なスキーマビューワを持ちます。
+Hodur provides dynamic schema visualizer.
 https://github.com/luchiniatwork/hodur-visualizer-schema
 
-ただし、実装を見ると分かりますが、このプラグインは cljs + figwheel で実装されており、スキーマ定義を cljs コードから読み込む必要があり、通常 edn ファイルからスキーマを読み込むことは出来ません。今回は上記の通り edn ファイルにスキーマを定義したいので、一工夫加えます。visualizer.cljs が上記プラグインを使ってスキーマビューワを SPA として描画しているコードです。
+We defined hodur models in edn file. As this plugin is implemented by cljs + figwheel, we can't read edn file in a normal way.
+But by usin clojure macro, we cant do that.
+The following is the cljs code which visualize hodur models as SPA.
 
 ```clojure:dev/src/graphql_server/visualizer.cljs
 (ns graphql-server.visualizer
@@ -538,13 +542,13 @@ https://github.com/luchiniatwork/hodur-visualizer-schema
             [hodur-visualizer-schema.core :as visualizer])
   (:require-macros [graphql-server.macro :refer [read-schema]]))
 
-(-> (read-schema "graphql_server/schema.edn") ;; edn ファイルをマクロにより読み込んで展開
+(-> (read-schema "graphql_server/schema.edn") ;; This code reads schema.edn file and expand it to cljs code.
     engine/init-schema
     visualizer/schema
     visualizer/apply-diagram!)
 ```
 
-ここで、`read-schema` は clojure マクロで、コンパイル時に edn ファイルを読み込んで cljs コードに展開しています。
+`read-schema` is a clojure macro implemented as follows.
 
 ```clojure:dev/src/graphql_server/macro.cljc
 (ns graphql-server.macro
@@ -558,26 +562,27 @@ https://github.com/luchiniatwork/hodur-visualizer-schema
                read-string)))
 ```
 
-こうすることで、edn ファイルのスキーマ定義を cljs から直接読み込んで可視化することが可能となります。当アプリでビューワは開発プロファイルでは http://localhost:9500 に起動します。
-
+By this code, we can load edn schema file and visualize it. clj-graphql-server runs this viewer in http://localhost:9500 in dev profile.
 ![Screen Shot 2019-01-28 at 10.04.46 AM.png](https://qiita-image-store.s3.amazonaws.com/0/109888/ce339a6a-15d4-16bd-5763-a6a1b554b9d1.png)
 
-スキーマ定義ファイルを編集した時は、`(reset)` により上記ビューワにも変更が反映されます。スキーマ定義ファイルの変更検知、再コンパイルは figwheel では出来ないため、`dev/src/graphql_server/visualizer_schema.clj` で直接変更検知したりしてなんとかしました。
+When you edit schema file, `(reset)` updates the view. Detect updates and recompile are implemented in `dev/src/graphql_server/visualizer_schema.clj`.
 
 ### Generate clojure.spec definitions
-hodur は clojure.spec 定義も生成することが出来ます。
+Hodur can also generate clojure.spec definitions.
 https://github.com/luchiniatwork/hodur-spec-schema
 
-今回 spec は開発プロファイルのみで利用することとし、関数の入出力精査に利用します。meta-db から生成した spec は未評価のフォームとなるので、eval することで spec を登録します。
+In dev profile, I use clojure.spec to validate input and output of boundary functions. Spec plugin generates unevaliated spec forms from meta-db. So we need to eval them to register.
 
 ```clojure:dev/src/graphql_server/spec.clj
 (defmethod ig/init-key :graphql-server/spec [_ {:keys [meta-db] :as options}]
   (let [spec (hodur-spec/schema meta-db {:prefix :graphql-server.spec})]
-    (eval spec) ;; スペック読み込み
-    (fdef) ;; 関数スペックの読み込み
-    (stest/instrument) ;; 関数の入出力精査の有効化
+    (eval spec) ;; Register specs.
+    (fdef) ;; Load function specs.
+    (stest/instrument) ;; Activate instrumentation of clojure.spec for functions.
     (assoc options :spec spec)))
 ```
+
+Generated spec forms are as follows.
 
 ```clojure
 (clojure.spec.alpha/def
@@ -601,9 +606,8 @@ https://github.com/luchiniatwork/hodur-spec-schema
  ...]
 ```
 
-生成されるのは属性とエンティティに対するスペックだけなので、関数のスペックを定義するためには、上記の値のスペックを使って別途定義する必要があります。（上記では fdef という関数内で定義してる）関数スペック定義後、`(stest/instrument)` によって実行時の関数スペック精査をオンにしています。ここで clojure.spec.test.alpha の instrument だと入力に対する精査しか行われないため、[orchestra](https://github.com/jeaye/orchestra) というライブラリを使って入出力ともに実行時精査できるようにしています。
-
-確認中ですが hodur のスペックプラグインは若干バグが有り、参照を含むと生成がうまくいかないケースが存在します。`:spec/tag false` などを利用して参照のスペック生成を抑制する必要がありそうです。
+As the plugin generates only specs for entities and attributes, we need to define and register function specs by ourselves. I defined `fdef` function to register function specs in my code.
+Then we need to execute `(stest/instrument)` to activate imstrumentation for function specs. By default, clojure.spec will only instrument :arg. So I use [orchestra](https://github.com/jeaye/orchestra) to validate both :arg and :ret during its execution.
 
 ## Use Subscription
 Subscription は GraphQL でも比較的新しい仕様で、WebSocket を通じてリソースの更新をリアルタイムにストリームとして受け取れる機能です。
