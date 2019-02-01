@@ -610,13 +610,13 @@ As the plugin generates only specs for entities and attributes, we need to defin
 Then we need to execute `(stest/instrument)` to activate imstrumentation for function specs. By default, clojure.spec will only instrument :arg. So I use [orchestra](https://github.com/jeaye/orchestra) to validate both :arg and :ret during its execution.
 
 ## Use Subscription
-Subscription は GraphQL でも比較的新しい仕様で、WebSocket を通じてリソースの更新をリアルタイムにストリームとして受け取れる機能です。
+Subscription is a relatively new specification of GraphQL. It enable client to get realtime data streaming via WebSocket.
 https://facebook.github.io/graphql/June2018/#sec-Subscription
 
-Lacinia はこの仕様をサポートしており、resolver の代わりに streamer という関数を実装することで実現できます。
+Lacinia supports this functiona. In order to use it, we need to implement not only resolver but also streamer function.
 https://lacinia.readthedocs.io/en/latest/subscriptions/
 
-下記が Lacinia ドキュメントにおける streamer 参考実装です。
+The following is the reference implementation of streamer in Lacinia document.
 
 ```clojure
 (defn log-message-streamer
@@ -630,9 +630,8 @@ https://lacinia.readthedocs.io/en/latest/subscriptions/
     #(stop-log-subscription subscription)))
 ```
 
-第三引数の `source-stream` が、クライアント側に更新を通知するための関数です。`create-log-subscription` は何らかのイベントソースのサブスクリプションを生成する関数で、イベント生成に応じて `source-stream` を実行するようにします。streamer 関数（`log-message-streamer`）自体は、サブスクリプションを終了するためのコールバックを返すように実装します。サブスクリプションは実際には core.async や Kafka を使って実現することになります。
-
-今回の API では、取組情報を取得する部分を streamer として実装してみました。まずは、システム内で一意に使える core.async チャンネルとその配信を作成します。 
+The third argument, `source-stream` is the function which notify resource update to the client. `create-log-subscription` is a function which create subscription for some resources. On subscription it executes `source-stream`. In a real system, we may implement streamer by using core.async, Kafka or somehing like that. Streamer function itself returns the callback which ends the subscription.
+In this time I implemented API to get torikumi information as a streamer. At first, I implemented a integrant method which generates core.async channel and its publication as follows.
 
 ```clojure:src/graphql_server/channel.clj
 (ns graphql-server.channel
@@ -641,14 +640,14 @@ https://lacinia.readthedocs.io/en/latest/subscriptions/
 
 (defmethod ig/init-key :graphql-server/channel [_ _]
   (let [channel (chan)]
-    {:channel channel :publication (pub channel :msg-type)})) ;; core.async チャンネルと配信生成
+    {:channel channel :publication (pub channel :msg-type)})) ;; Generates core.async channel and its publication.
 
 (defmethod ig/halt-key! :graphql-server/channel [_ {:keys [channel publication]}]
   (unsub-all publication)
   (close! channel))
 ```
 
-streamer はこの配信を初期化時に受け取り、購読するようにします。
+streamer takes this publication when initialization and subscribes it.
 
 ```clojure:src/graphql_server/handler/streamer.clj
 (ns graphql-server.handler.streamer
@@ -663,22 +662,22 @@ streamer はこの配信を初期化時に受け取り、購読するように�
     (let [{:keys [id]} (get-in request [:auth-info :client :user])
           torikumis (db/find-torikumis db id num)]
       (source-stream torikumis)
-      (let [{:keys [publication]} channel ;; 配信の受け取り
+      (let [{:keys [publication]} channel ;; Take the publication.
             subscription (chan)] ;; 購読作成
-        (sub publication :torikumi/updated subscription) ;; 配信の購読開始
+        (sub publication :torikumi/updated subscription) ;; Start to subscribe the publication.
         (go-loop []
-          (when-let [{:keys [data]} (<! subscription)] ;; イベント待ち受け
+          (when-let [{:keys [data]} (<! subscription)] ;; Wait for event.
             (let [torikumis (db/find-torikumis db id num)]
               (println "Subscription received data" data)
-              (source-stream torikumis) ;; クライアントへの通知
+              (source-stream torikumis) ;; Notify update to client.
               (recur))))
         #(do
            (println "Stop subscription.")
            (unsub publication :torikumi/updated subscription)
-           (close! subscription)))))) ;; 購読の停止
+           (close! subscription)))))) ;; Stop subscription.
 ```
 
-core.async チャンネルを通じて下記の通りメッセージを発行すれば、streamer は source-stream を実行し、クライアント側で更新を受け取れます。
+You can publish event via core.async channel as follows. 
 
 ```clojure
 (require '[clojure.core.async :refer [>!!]])
@@ -687,7 +686,7 @@ core.async チャンネルを通じて下記の通りメッセージを発行す
      {:msg-type :torikumi/updated :data {:msg "Updated!"}})
 ```
 
-今回は duct.scheduler.simple を利用し、10s ごとにランダムで取り組み情報を更新し、更新メッセージを発行する関数を用意しました。
+In this time, I use duct.scheduler.simple to create torikumi information randomly and to publish event in every 10s. The following is the function to do that.
 
 ```clojure:src/graphql_server/dohyo.clj
 (ns graphql-server.dohyo
@@ -710,12 +709,12 @@ core.async チャンネルを通じて下記の通りメッセージを発行す
                                                       higashi nishi)
                                         :kimarite (rand-nth ["TSUKIDASHI" "TSUKITAOSHI" "OSHIDASHI" ;; ...
                                                              "FUMIDASHI"])})]
-      (>!! (:channel channel) ;; イベント発行
+      (>!! (:channel channel) ;; Publish event.
            {:msg-type :torikumi/updated
             :data {:msg "Updated!" :torikumi torikumi}}))))
 ```
 
-GraphiQL から subscription を試せばリアルタイムに結果が更新されていくのがわかります。（力士をお気に入りに登録する必要あり）
+You can try this subscription in GraphiQL. You will see the result will be updated in real time.
 ![Screen Shot 2019-01-28 at 3.48.09 PM.png](https://qiita-image-store.s3.amazonaws.com/0/109888/4b2a58b2-827c-3418-3452-7b5f994285ba.png)
 
 ## Pagenation
