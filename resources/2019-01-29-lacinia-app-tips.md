@@ -718,28 +718,28 @@ You can try this subscription in GraphiQL. You will see the result will be updat
 ![Screen Shot 2019-01-28 at 3.48.09 PM.png](https://qiita-image-store.s3.amazonaws.com/0/109888/4b2a58b2-827c-3418-3452-7b5f994285ba.png)
 
 ## Pagenation
-力士情報を一度に全部取得するのは負荷が大きいため、ページネーションを実装します。GraphQL は公式なページネーションの方法を定義してはいませんが、GraphQL のクライアントである Relay は Relay-Style Cursor Pagination というページネーション仕様を持ちます。
+Since it's heavy load to fetch all rikishis information at once, I will implement pagenation. Although GraphQL itself doesn't define how to implement pagenation, Relay, a GraphQL client, has a pagenation specification called Relay-Style Cursor Pagination.
 https://facebook.github.io/relay/graphql/connections.htm
 
-リソースのリストをコネクションという情報でラップし、各データにカーソルを持たせ、ページ単位に開始位置と終了位置を持たせることで、次の（前の）ページを取得できるようにする方式で、クライアント側でリソースの無限スクロールを実現するのに向いています。Relay-Style Cursor Pagination に準拠したクエリの引数には下記を指定できます。通常の用途では after と first を使うことになります。
+It wraps resource list in a entity named connection to give cursor to each data. And as it also has start cursor and end cursor, it can get next page. It is good for implementing infinite scroll. In query fo Relay-Style Cursor Pagination, you can specify following arguments. In normal usecase, you should use after and first.
 
-* after ... 指定したカーソルより後ろから
-* first ... 最初の first 個のデータを取得
-* before ... 指定したカーソルより前の
-* last ... 後ろから last 個を取得
+* after ... Get resources after the cursor.
+* first ... Get first n resources.
+* before ... Get resources before the cursor.
+* last ... Get last n resources.
 
-結果であるコネクションは下記の属性をもちます。
+Then the result connection has following attributes.
 
-* pageInfo ... ページング情報
-    * hasPreviousPage ... 前のページを持つか
-    * hasNextPage ... 次のページを持つか
-    * startCursor ... 開始カーソル
-    * endCursor ... 最後のカーソル
-* edges ... 結果のリスト
-    * cursor ... データのカーソル。データを一意に特定できる文字列なら何でも良いが、通常 ID の base64 エンコーディングとかにする
-    * node ... データの実体
+* pageInfo ... paging information.
+    * hasPreviousPage
+    * hasNextPage
+    * startCursor
+    * endCursor
+* edges ... The result list
+    * cursor ... The cursor for resource that is normaly base64 encoding of resource id.
+    * node ... The resource itself.
 
-次のページを取得するためには、現在の結果の pageInfo.endCursor を引数 after に指定してクエリを投げれば次のページが取得できます。下記が上記の仕様を実装した箇所です。first, last が Clojure ではシンプルに実装できていいですね。
+In order to get the next page, you specify pageInfo.endCursor after argument of next quey. The following is the implementation of that.
 
 ```clojure:src/graphql_server/boundary/db.clj
   (find-rikishis [{:keys [connection]} before after first-n last-n]
