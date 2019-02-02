@@ -772,29 +772,30 @@ In order to get the next page, you specify pageInfo.endCursor after argument of 
 ```
 
 ## Implement client with re-frame
-最後に GraphQL クライアントの実装方法です。
+Last but not least, I introduce how to implement GraphQL client.
 https://github.com/223kazuki/clj-graphql-client
 
 <!-- クライアントは、力士一覧ページで力士をお気に入りに登録し、取組ページからお気に入り力士の取組結果をリアルタイムに閲覧できるというアプリになっています。（取組結果はランダム）
 ![sumoql.png](https://qiita-image-store.s3.amazonaws.com/0/109888/e690aca3-05d0-567f-1c5b-556af1852109.png)
  -->
 
-ここまで実装してきた API サーバは GraphQL の仕様に準拠しているので、クライアントは [Apollo](https://www.apollographql.com/) や [Relay](https://facebook.github.io/relay/) により開発することが可能ですが、ここまで来たらやはり ClojureScript で実装したいです。[re-graph](https://github.com/oliyh/re-graph) を使うと re-frame で Apollo のように GraphQL API にアクセスすることが出来ます。re-graph を使うと GraphQL アクセス用の re-frame イベントや副作用が登録され、利用できるようになります。
+Since the API server I've implemented so far conforms to GraphQL specification, you can use [Apollo](https://www.apollographql.com/) or [Relay](https://facebook.github.io/relay/) to develop client. But I want to use cljs to develop client as with the server. By using [re-graph](https://github.com/oliyh/re-graph), you can implement GraphQL client with re-frame. re-graph register re-frame events and effects to access GraphQL API.
 
 ### Initialize re-graph
-re-graph を使うにはまず `:re-graph.core/init` イベントを dispatch します。dispatch には下記のように GraphQL のアクセス情報を渡します。
+To use re-graph, you need to dispatch `:re-graph.core/init` event first with following parameters.
 
 ```cljs
-{:http-url                "http://localhost:8080/graphql" ;; GraphQL エンドポイント
- :ws-url                  "ws://localhost:8080/graphql-ws?token=xxxxxxxxxxxxxxxx" ;; WebSocket 接続用のアクセストークン付き URL
+{:http-url                "http://localhost:8080/graphql" ;; GraphQL endpoint URL.
+ :ws-url                  "ws://localhost:8080/graphql-ws?token=xxxxxxxxxxxxxxxx" ;; WebSocket endpoint URL with access token.
  :ws-reconnect-timeout    2000
  :resume-subscriptions?   true
  :connection-init-payload {}
  :http-parameters         {:with-credentials? false
-                           :headers {"Authorization" "Bearer xxxxxxxxxxxxxxxx"}}} ;; HTTP 接続用のアクセストークン
+                           :headers {"Authorization" "Bearer xxxxxxxxxxxxxxxx"}}} ;; Access token for HTTP access.
 ```
 
-アクセストークンは OAuth2 フローを通じて取得したものを設定します。このオプションを使って re-graph を初期化します。
+You need to set access token which you get through OAuth 2.0 flow.
+And the following is the code which dispatches initialize event.
 
 ```cljs:src/graphql_client/client/module/graphql.cljs
 (defmethod reg-event ::init [k]
@@ -811,17 +812,17 @@ re-graph を使うにはまず `:re-graph.core/init` イベントを dispatch �
        :dispatch [::re-graph/init options]}))))
 ```
 
-※ クライアントは re-frame を integrant と組み合わせて開発しています。このアーキテクチャについては [re-frame+integrant による ClojureScript SPA 開発](https://qiita.com/223kazuki/items/ce1680dc54ff8fe4770c) を参照して下さい。
+※ I use re-frame with integrant. I explained this architecture in [previous post](https://223kazuki.github.io/re-integrant-app.html). So please refer to it.
 
 ### Perform GraphQL query
-re-graph を初期化すると、`:re-graph.core/query` イベントを dispatch することで GraphQL にクエリが投げられます。イベントにクエリ（文字列）、引数、コールバックを渡して dispatch します。成功するとコールバックが呼び出されるので、app-db に結果を書き込みます。
+After initialization, you can issue GraphQL query by `:re-graph.core/query` event. This event receives query as string, query argument and callback event. If the query suceeds, the callback event will be dispatched to update app-db.
 
 ```cljs:src/graphql_client/client/module/graphql.cljs
-(defmethod reg-sub ::sub-query [k] ;; クエリ結果の subscription
+(defmethod reg-sub ::sub-query [k] ;; Subscription for query result.
   (re-frame/reg-sub-raw
    k (fn [app-db [_ query args path]]
        (re-frame/dispatch [::re-graph/query
-                           (graphql-query query) args [::on-query-success path]]) ;; クエリ dispatch
+                           (graphql-query query) args [::on-query-success path]]) ;; Dispatch query.
        (reagent.ratom/make-reaction
         #(get-in @app-db path)
         :on-dispose #(re-frame/dispatch [::clean-db path])))))
@@ -832,20 +833,21 @@ re-graph を初期化すると、`:re-graph.core/query` イベントを dispatch
   (re-frame/reg-event-fx
    k [re-frame/trim-v]
    (fn-traced
-    [{:keys [db]} [path {:keys [data errors] :as payload}]] ;; クエリ結果
+    [{:keys [db]} [path {:keys [data errors] :as payload}]] ;; Query result.
     (if errors
       (case (get-in (first errors) [:extensions :status])
         403 {:redirect "/login"}
         {})
-      {:db (update-in db path merge data)})))) ;; クエリ結果の app-db 書き込み
+      {:db (update-in db path merge data)})))) ;; Write query result to app-db.
 ```
 
-ビュー側からクエリを発行する際に GraphQL の柔軟性を損ないたくないため、ビュー側で直接 GraphQL クエリを指定できるようにします。また、クエリ自体も柔軟に操作出来るように、文字列ではなく GraphQL クエリライブラリの graphql-query により clojure データとして扱えるようにします。
+Because I want to keep flexibility of GraphQL query when dispatching from view, I enable to specify query directly in view.
+And I'd like to deal with query as data. So I use graphql-query.
 https://github.com/district0x/graphql-query
 
 ```cljs:src/graphql_client/client/views.cljs
 (defn _home-panel []
-  (let [query {:operation {:operation/type :query ;; クエリ
+  (let [query {:operation {:operation/type :query ;; Query.
                            :operation/name :rikishisQuery}
                :variables [{:variable/name :$after
                             :variable/type :String}]
@@ -855,14 +857,15 @@ https://github.com/district0x/graphql-query
                                         [:edges [[:node [:id :shikona :banduke
                                                          [:sumobeya [:name]]]]]]]]}]}
         path [::rikishis]
-        rikishis (re-frame/subscribe [::graphql/sub-query query {} path])] ;; re-frame subscription を通じてクエリ発行
+        rikishis (re-frame/subscribe [::graphql/sub-query query {} path])] ;; Issue query via re-frame subscription.
     (fn []
       (when-let [rikishis @rikishis]
         ;; ...
       ))))
 ```
 
-上記で実装した Relay-Style Cursor Pagination API を利用すれば無限スクロールも実現できます。当サンプルでは [soda-ash](https://github.com/gadfly361/soda-ash) というライブラリにより [Semantic UI React](https://react.semantic-ui.com/) を使っており、[Visibility](https://react.semantic-ui.com/behaviors/visibility/) を利用することで力士一覧を無限スクロールさせています。
+You can implement infinite scroll with using Relay-Style Cursor Pagination API which I've already implemented.
+In this example I use [soda-ash](https://github.com/gadfly361/soda-ash) to use [Visibility component](https://react.semantic-ui.com/behaviors/visibility/) of [Semantic UI React](https://react.semantic-ui.com/) to do that.
 
 ```cljs:src/graphql_client/client/views.cljs
 [sa/Visibility {:as "tbody"
@@ -872,7 +875,7 @@ https://github.com/district0x/graphql-query
                                               (js->clj (aget ctx "calculations")
                                                        :keywordize-keys true)]
                                           (when (and bottomVisible hasNextPage)
-                                            (re-frame/dispatch [::graphql/fetch-more ;; 追加リソースの fetch
+                                            (re-frame/dispatch [::graphql/fetch-more ;; Fetch additional resources
                                                                 query path :rikishis])
                                             (js/console.log "fetch more!"))))}
             (for [{{:keys [id shikona banduke sumobeya]} :node} edges]
@@ -882,19 +885,19 @@ https://github.com/district0x/graphql-query
 ```
 
 ### Start Subscription
-re-graph は Subscription にも対応しています。Subscription を有効化するには re-graph 初期化時に `:ws-url` を指定している必要があります。Subscription を開始するには、`:re-graph.core/subscribe` イベントにサブスクリプション ID、クエリ、引数、コールバックを指定して dispatch します。サブスクリプション ID は複数の Subscription を発行する際に、それぞれの接続を特定するために利用されます。
+re-graph also supports Subscription. To use Subscription, you need to specify `:ws-url` in initialization. Then dispatch `:re-graph.core/subscribe` event with subsciption id, query as string, query arguments and callback.
 
 ```cljs/graphql_client/client/module/graphql.cljs
 (defmethod reg-sub ::sub-subscription [k]
   (re-frame/reg-sub-raw
    k (fn [app-db [_ query args path]]
        (let [subscription-id (keyword (str path))]
-         (re-frame/dispatch [::re-graph/subscribe ;; Subscription 開始
+         (re-frame/dispatch [::re-graph/subscribe ;; Start subscription.
                              subscription-id (graphql-query query) args
                              [::on-thing path]])
          (reagent.ratom/make-reaction
           #(get-in @app-db path)
-          :on-dispose #(re-frame/dispatch [::re-graph/unsubscribe subscription-id])))))) ;; Subscription 終了
+          :on-dispose #(re-frame/dispatch [::re-graph/unsubscribe subscription-id])))))) ;; Stop subscription.
 ;; ...
 (defmethod reg-event ::on-thing [k]
   (re-frame/reg-event-fx
@@ -908,36 +911,18 @@ re-graph は Subscription にも対応しています。Subscription を有効�
       {:db (assoc-in db path data)}))))
 ```
 
-これにより、取組情報ページでは取組情報の更新をリアルタイムで受け取れます。
-
-## What I didn't do
-Lacinia は他にも多数の機能を持ち、試せなかったことはたくさんありますが、敢えてふれなかった機能を上げます。
-
-### Avoid N+1 problem
-@lagenorhynque さんがまとめてくれていたので、そちらを参照して下さい。Datomic のクエリ表現力と組み合わせると非常に強力な機能だと思います。
-https://qiita.com/lagenorhynque/items/eebb9a36859789520dbf#9-n1%E5%95%8F%E9%A1%8C%E3%81%AE%E5%9B%9E%E9%81%BF
-
-### Validate and test data by clojure.spec
-~~clojure.spec を利用して書きたかったのですが、現状 hodur の spec プラグインの表現力が乏しく、型とキー以外の指定ができなかったためやめておきました。umlaut は spec に関して外部スペックの指定などが出来たので、その辺は umlaut の方が優れているかも知れません。~~
-https://github.com/workco/umlaut#spec-generator
-
-見落としてましたが　hodur-spec-schema でも spec 定義の拡張が出来ました。
-https://github.com/223kazuki/hodur-spec-schema/tree/v0.1.0#overriding-and-extending
-
-しかし、現状参照型周りでよくわからない挙動があるため、開発を追ってみようと思います。
+Then you can get resource update in real time.
 
 ## Summary
-Lacinia でアプリを開発する上での Tips をまとめました。
-Tips といいつつも「私はとりあえずこうした」という内容なので、実際の企業でどのように使われているかは私も気になるところで、コメント等あれば嬉しいです。
+In this post, I introduce Tips for Lacinia app development. Although there are some hard point in GraphQL, it's one of the most exciting usecase of Clojure.
+If you have some comments or question, please send me messege in [goronao@Twitter](https://twitter.com/goronao).
 
 ## References
 * [Lacinia document](https://lacinia.readthedocs.io/en/latest/)
 * [GraphQL Specification](https://facebook.github.io/graphql/June2018/)
-* [Clojureサービス開発ライブラリPedestal入門](https://qiita.com/lagenorhynque/items/fbd66ebaa0352ec4253d)
-* [ClojureのLaciniaでGraphQL API開発してみた](https://qiita.com/lagenorhynque/items/eebb9a36859789520dbf)
 * [Relay Cursor Connections Specification](https://facebook.github.io/relay/graphql/connections.htm)
-* [re-frame+integrant による ClojureScript SPA 開発](https://qiita.com/223kazuki/items/ce1680dc54ff8fe4770c)
-* [ClojureでGraphQLサーバを立てる](https://qiita.com/223kazuki/items/ba4ba84e2da1daea3b52)
 * [The OAuth 2.0 Authorization Framework](https://tools.ietf.org/html/rfc6749)
 * [Datomic On-Prem Documentation](https://docs.datomic.com/on-prem/index.html)
 * [hodur-engine](https://github.com/luchiniatwork/hodur-engine)
+* [Clojureサービス開発ライブラリPedestal入門(Japanese)](https://qiita.com/lagenorhynque/items/fbd66ebaa0352ec4253d)
+* [ClojureのLaciniaでGraphQL API開発してみた(Japanese)](https://qiita.com/lagenorhynque/items/eebb9a36859789520dbf)
