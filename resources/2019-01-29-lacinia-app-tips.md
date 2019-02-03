@@ -26,7 +26,7 @@ tags:
  - hodur
 ---
 
-Recently, I tried Lacinia because many clojurians and companies begin to use it. It's one of the most exciting clojure library today. I'm very fascinated by it. But while developing Lacinia application, I also met some difficulties. In this post, I introduce how I resolved those difficulties as Tips for lacinia app development. As I don't intend to introduce Lacinia itself, I don't explain whant Lacinia is. Please read [Lacinia document](https://lacinia.readthedocs.io/en/latest/) and try tutorial first.
+Recently, I tried Lacinia because many clojurians and companies begin to use it. It's one of the most exciting clojure library today. I'm very fascinated by it. But while developing Lacinia application, I also met some difficulties. In this post, I introduce how I resolved those difficulties as Tips for lacinia app development. As I don't intend to introduce Lacinia itself, I don't explain what Lacinia is. Please read [Lacinia document](https://lacinia.readthedocs.io/en/latest/) and try tutorial first.
 
 ## Example repositories
 What I developed are these.
@@ -34,24 +34,24 @@ What I developed are these.
 * https://github.com/223kazuki/clj-graphql-server ... GraphQL API server
 * https://github.com/223kazuki/clj-graphql-client ... GraphQL client
 
-The theme is data API of 大相撲: [Grand Sumo Tornament](http://www.sumo.or.jp/En/). And technology stack are followings.
+The theme is data API of 大相撲: [Grand Sumo Tournament](http://www.sumo.or.jp/En/). And technology stack are followings.
 
 * GraphQL API: Lacinia + Pedestal
 * Persistence layer: Datomic
-* API Authencatation: OAuth2
+* API Authentication: OAuth2
 * Framework: duct
-* Dmain modeling: hodur
+* Domain modeling: hodur
 * Client: re-frame + integrant
 
-Plese refer to README of each repositories in order to know the version of dependencies and how to setup them.
+Please refer to README of each repositories in order to know the version of dependencies and how to setup them.
 clj-graphql-server also hosts [GraphiQL](https://github.com/graphql/graphiql) in dev profile. So you can try queries.
 ![graphiql.gif](https://qiita-image-store.s3.amazonaws.com/0/109888/7d78104c-ff68-77ae-2975-06c9f9412772.gif)
 
 In following sections, I will introduce the Tips for Lacinia app development by using these repositories.
 
 ## ductify
-I use [pedestal](https://github.com/pedestal/pedestal) to host Lacinia because Lacinia provides [lacinia-pedestal](https://github.com/walmartlabs/lacinia-pedestal). As both Lacinia and Pedestal have a lot of parameters to initialize, I use [duct](https://github.com/duct-framework/duct) framework to manage them declaretively. [module.pedestal](https://github.com/lagenorhynque/duct.module.pedestal) provides pedestal server module to duct. And lacinita-pedestal provides GraphQL API service map for pedestal. So I wrap it in integrant key(`:graphql-server.lacinia/service`) and set ref to pedestal key(`:duct.server/pedestal`). And I define some other integrant keys to manage lacinia components like resolver, streamer, or schema because they have their own dependencies.
-The abstract of configration map is as follow.
+I use [pedestal](https://github.com/pedestal/pedestal) to host Lacinia because Lacinia provides [lacinia-pedestal](https://github.com/walmartlabs/lacinia-pedestal). As both Lacinia and Pedestal have a lot of parameters to initialize, I use [duct](https://github.com/duct-framework/duct) framework to manage them declaratively. [module.pedestal](https://github.com/lagenorhynque/duct.module.pedestal) provides pedestal server module to duct. And lacinita-pedestal provides GraphQL API service map for pedestal. So I wrap it in integrant key(`:graphql-server.lacinia/service`) and set ref to pedestal key(`:duct.server/pedestal`). And I define some other integrant keys to manage lacinia components like resolver, streamer, or schema because they have their own dependencies.
+The abstract of configuration map is as follow.
 
 ```clojure:resources/graphql_server/config.edn
 {:duct.profile/base
@@ -159,7 +159,7 @@ So I decided to apply OAuth 2.0 authentication for API access.
 I've already implement [OAuth 2.0 authentication in duct](https://github.com/223kazuki/clj-oauth-server) before. So I use it and don't explain itself in this post. But to put it briefly, I implemented OAuth 2.0 handlers in [clj-graphql-server/src/graphql_server/handler/auth.clj](https://github.com/223kazuki/clj-graphql-server/blob/master/src/graphql_server/handler/auth.clj) and manage access token in [clj-graphql-server/src/graphql_server/auth.clj](https://github.com/223kazuki/clj-graphql-server/blob/master/src/graphql_server/auth.clj). Auth handlers are injected to `:graphql-server.lacinia/service` by `:optional-routes` key.
 
 ### Authencication check for HTTP access
-Then where should we implement authentication check? When an authented client posts HTTP request to GraphQL API, we should implement it in incerceptor. I implemented it as follows.
+Then where should we implement authentication check? When an authenticated client posts HTTP request to GraphQL API, we should implement it in interceptor. I implemented it as follows.
 
 ```clojure:src/graphql_server/interceptors.clj
 (defmethod ig/init-key ::auth [_ {:keys [:auth]}]
@@ -178,9 +178,9 @@ Then where should we implement authentication check? When an authented client po
                                               last
                                               str/trim)] ;; Get access token from request headers.
                   (if-let [auth-info (auth/get-auth auth access-token)] ;; Get auth info by access token.
-                    (assoc-in context [:request :auth-info] auth-info) ;; Set it to context if auth info that inclues login user info.
-                    (assoc context :response forbidden-response)) ;; Return forbidded response if no auth info.
-                  (assoc context :response forbidden-response)))))}) ;; Return forbidded response if no token.
+                    (assoc-in context [:request :auth-info] auth-info) ;; Set it to context if auth info that includes login user info.
+                    (assoc context :response forbidden-response)) ;; Return forbidden response if no auth info.
+                  (assoc context :response forbidden-response)))))}) ;; Return forbidden response if no token.
 ```
 
 This interceptor is injected to `:graphql-server.lacinia/service` by `:optional-interceptors` key. It gets access token from request headers, gets auth info by token, sets auth info to context and returns context. So following procedures like resolver can use auth info via context.
@@ -192,8 +192,8 @@ This interceptor is injected to `:graphql-server.lacinia/service` by `:optional-
       (->Lacinia {:id id :email-address email-address}))))
 ```
 
-### Authencication check for WebSocket access
-When an authented client tried to access GraphQL API by WebSocket, it's common to check token in Handshake. Although WebSocket Handshake request also be able to pass access token in request headers, some client libraries don't support it. So I chose the way passing access token as a URL parameter.
+### Authentication check for WebSocket access
+When an authenticated client tried to access GraphQL API by WebSocket, it's common to check token in Handshake. Although WebSocket Handshake request also be able to pass access token in request headers, some client libraries don't support it. So I chose the way passing access token as a URL parameter.
 
 `GET http://localhost:8080/graphql-ws?token=xxxxxxxxxxx`
 
@@ -241,7 +241,7 @@ In this way, we can check authentication in WebSocket Handshake and use auth inf
 ```
 
 ## Connect to Datomic
-I use Datomic as data persistence layer. In order to use it in duct, I implemented module.datomic by refering to module.sql.
+I use Datomic as data persistence layer. In order to use it in duct, I implemented module.datomic by referring to module.sql.
 
 ```clojure:src/duct/module/datomic.clj
 (ns duct.module.datomic
@@ -285,7 +285,7 @@ This module inject `:duct.database/datomic` key that has connection to Datomic. 
   :graphql-server.handler.resolver/user-favorite-rikishis {:db #ig/ref :duct.database/datomic} ;; Refer to datomic key.
 ```
 
-Thoush I adstract Datomic access as a boundary, Datomic transaction and Lacinia paramters are both just a clojure data. So they are very compatible. And Datomic query has enough flexibility to accept expressive power of GraphQL query. Following query means "Get all torikumis which has rikishi which an user added to his favorite". ("Torikumi" means a sumo match between rikishi in "higashi" and rikishi in "nishi".) It's surprising that Datalog can easily express such a complicated query among many-to-many entities.
+Though I abstract Datomic access as a boundary, Datomic transaction and Lacinia parameters are both just a clojure data. So they are very compatible. And Datomic query has enough flexibility to accept expressive power of GraphQL query. Following query means "Get all torikumis which has rikishi which an user added to his favorite". ("Torikumi" means a sumo match between rikishi in "higashi" and rikishi in "nishi".) It's surprising that Datalog can easily express such a complicated query among many-to-many entities.
 
 ```clojure
 (d/q '[:find ?e
@@ -305,8 +305,8 @@ Datomic needs schema as with Lacinia. Consequently we want to commonize them and
 
 It's a domain modeling tool which can generate various schema definitions.
 Although there are not so many differences among them, hodur can define model definition as edn in contrast to umlaut's GraphQL like definition.
-Hodur uses [datascript](https://github.com/tonsky/datascript) internaly to generate meta-database. And each plugins queries it to generate their schemas.
-The following is the model definition of horndur.
+Hodur uses [datascript](https://github.com/tonsky/datascript) internally to generate meta-database. And each plugins queries it to generate their schemas.
+The following is the model definition of hodur.
 
 ```clojure:resources/graphql_server/schema.edn
 [^{:lacinia/tag true
@@ -345,7 +345,7 @@ The following is the model definition of horndur.
 ]
 ```
 
-Which model each plugins use is controlled by `:[plugin]/tag` key in their meta data. And other meta data for each plugins are defined `:[plugin]/*` kies. For example, lacinia resolver name is defined `:lacinia/resolver` key.
+Which model each plugins use is controlled by `:[plugin]/tag` key in their meta data. And other meta data for each plugins are defined `:[plugin]/*` keys. For example, lacinia resolver name is defined `:lacinia/resolver` key.
 As the model definition is edn, we can include it directly from config.edn
 
 ```clojure:resources/graphql_server/config.edn
@@ -365,7 +365,7 @@ As the model definition is edn, we can include it directly from config.edn
   (hodur/init-schema schema)) ;; Generate meta-db
 ```
 
-Because both Lacinia and Datomic allow reference type in their schema definition, we can almost same entity models. But GraphQL accepts circular reference while Datomic doesn't. So we have to set `:datomic/tag false` in one side of refference attribute.
+Because both Lacinia and Datomic allow reference type in their schema definition, we can almost same entity models. But GraphQL accepts circular reference while Datomic doesn't. So we have to set `:datomic/tag false` in one side of reference attribute.
 
 ### Generate Lacinia schema
 By using Lacinia plugin, we can generate Lacinia schema from hodur meta-db.
@@ -446,7 +446,7 @@ Generated schema is as follows.
    :args {:num {:type (non-null Int)}}}}}
 ```
 
-The method implemented by `:graphql-server.lacinia/service` key referes this schema and compiles it.
+The method implemented by `:graphql-server.lacinia/service` key refers this schema and compiles it.
 
 ### Migrate Datomic schema
 By using Datomic plugin, we can generate Datomic schema from hodur meta-db.
@@ -533,7 +533,7 @@ Hodur provides dynamic schema visualizer.
 https://github.com/luchiniatwork/hodur-visualizer-schema
 
 We defined hodur models in edn file. As this plugin is implemented by cljs + figwheel, we can't read edn file in a normal way.
-But by usin clojure macro, we cant do that.
+But by using clojure macro, we cant do that.
 The following is the cljs code which visualize hodur models as SPA.
 
 ```clojure:dev/src/graphql_server/visualizer.cljs
@@ -571,7 +571,7 @@ When you edit schema file, `(reset)` updates the view. Detect updates and recomp
 Hodur can also generate clojure.spec definitions.
 https://github.com/luchiniatwork/hodur-spec-schema
 
-In dev profile, I use clojure.spec to validate input and output of boundary functions. Spec plugin generates unevaliated spec forms from meta-db. So we need to eval them to register.
+In dev profile, I use clojure.spec to validate input and output of boundary functions. Spec plugin generates unevaluated spec forms from meta-db. So we need to evaluate them to register.
 
 ```clojure:dev/src/graphql_server/spec.clj
 (defmethod ig/init-key :graphql-server/spec [_ {:keys [meta-db] :as options}]
@@ -607,13 +607,13 @@ Generated spec forms are as follows.
 ```
 
 As the plugin generates only specs for entities and attributes, we need to define and register function specs by ourselves. I defined `fdef` function to register function specs in my code.
-Then we need to execute `(stest/instrument)` to activate imstrumentation for function specs. By default, clojure.spec will only instrument :arg. So I use [orchestra](https://github.com/jeaye/orchestra) to validate both :arg and :ret during its execution.
+Then we need to execute `(stest/instrument)` to activate instrumentation for function specs. By default, clojure.spec will only instrument :arg. So I use [orchestra](https://github.com/jeaye/orchestra) to validate both :arg and :ret during its execution.
 
 ## Use Subscription
-Subscription is a relatively new specification of GraphQL. It enable client to get realtime data streaming via WebSocket.
+Subscription is a relatively new specification of GraphQL. It enables client to get real time data streaming via WebSocket.
 https://facebook.github.io/graphql/June2018/#sec-Subscription
 
-Lacinia supports this functiona. In order to use it, we need to implement not only resolver but also streamer function.
+Lacinia supports this functionality. In order to use it, we need to implement not only resolver but also streamer function.
 https://lacinia.readthedocs.io/en/latest/subscriptions/
 
 The following is the reference implementation of streamer in Lacinia document.
@@ -630,7 +630,7 @@ The following is the reference implementation of streamer in Lacinia document.
     #(stop-log-subscription subscription)))
 ```
 
-The third argument, `source-stream` is the function which notify resource update to the client. `create-log-subscription` is a function which create subscription for some resources. On subscription it executes `source-stream`. In a real system, we may implement streamer by using core.async, Kafka or somehing like that. Streamer function itself returns the callback which ends the subscription.
+The third argument, `source-stream` is the function which notify resource update to the client. `create-log-subscription` is a function which create subscription for some resources. On subscription it executes `source-stream`. In a real system, we may implement streamer by using core.async, Kafka or something like that. Streamer function itself returns the callback which ends the subscription.
 In this time I implemented API to get torikumi information as a streamer. At first, I implemented a integrant method which generates core.async channel and its publication as follows.
 
 ```clojure:src/graphql_server/channel.clj
@@ -663,7 +663,7 @@ streamer takes this publication when initialization and subscribes it.
           torikumis (db/find-torikumis db id num)]
       (source-stream torikumis)
       (let [{:keys [publication]} channel ;; Take the publication.
-            subscription (chan)] ;; 購読作成
+            subscription (chan)] ;; Create subscription.
         (sub publication :torikumi/updated subscription) ;; Start to subscribe the publication.
         (go-loop []
           (when-let [{:keys [data]} (<! subscription)] ;; Wait for event.
@@ -717,11 +717,11 @@ In this time, I use duct.scheduler.simple to create torikumi information randoml
 You can try this subscription in GraphiQL. You will see the result will be updated in real time.
 ![Screen Shot 2019-01-28 at 3.48.09 PM.png](https://qiita-image-store.s3.amazonaws.com/0/109888/4b2a58b2-827c-3418-3452-7b5f994285ba.png)
 
-## Pagenation
-Since it's heavy load to fetch all rikishis information at once, I will implement pagenation. Although GraphQL itself doesn't define how to implement pagenation, Relay, a GraphQL client, has a pagenation specification called Relay-Style Cursor Pagination.
+## Pagination
+Since it's heavy load to fetch all rikishis information at once, I will implement pagination. Although GraphQL itself doesn't define how to implement pagination, Relay, a GraphQL client, has a pagination specification called Relay-Style Cursor Pagination.
 https://facebook.github.io/relay/graphql/connections.htm
 
-It wraps resource list in a entity named connection to give cursor to each data. And as it also has start cursor and end cursor, it can get next page. It is good for implementing infinite scroll. In query fo Relay-Style Cursor Pagination, you can specify following arguments. In normal usecase, you should use after and first.
+It wraps resource list in a entity named connection to give cursor to each data. And as it also has start cursor and end cursor, it can get next page. It is good for implementing infinite scroll. In query for Relay-Style Cursor Pagination, you can specify following arguments. In normal use cases, you should use after and first.
 
 * after ... Get resources after the cursor.
 * first ... Get first n resources.
@@ -736,10 +736,10 @@ Then the result connection has following attributes.
     * startCursor
     * endCursor
 * edges ... The result list
-    * cursor ... The cursor for resource that is normaly base64 encoding of resource id.
+    * cursor ... The cursor for resource that is normally base64 encoding of resource id.
     * node ... The resource itself.
 
-In order to get the next page, you specify pageInfo.endCursor after argument of next quey. The following is the implementation of that.
+In order to get the next page, you specify pageInfo.endCursor after argument of next query. The following is the implementation of that.
 
 ```clojure:src/graphql_server/boundary/db.clj
   (find-rikishis [{:keys [connection]} before after first-n last-n]
@@ -774,8 +774,6 @@ In order to get the next page, you specify pageInfo.endCursor after argument of 
 ## Implement client with re-frame
 Last but not least, I introduce how to implement GraphQL client.
 https://github.com/223kazuki/clj-graphql-client
-
-<!-- クライアントは、力士一覧ページで力士をお気に入りに登録し、取組ページからお気に入り力士の取組結果をリアルタイムに閲覧できるというアプリになっています。（取組結果はランダム）
 ![sumoql.png](https://qiita-image-store.s3.amazonaws.com/0/109888/e690aca3-05d0-567f-1c5b-556af1852109.png)
  -->
 
@@ -812,10 +810,10 @@ And the following is the code which dispatches initialize event.
        :dispatch [::re-graph/init options]}))))
 ```
 
-※ I use re-frame with integrant. I explained this architecture in [previous post](https://223kazuki.github.io/re-integrant-app.html). So please refer to it.
+※ I use re-frame with integrant. I explained this architecture in the [previous post](https://223kazuki.github.io/re-integrant-app.html). So please refer to it.
 
 ### Perform GraphQL query
-After initialization, you can issue GraphQL query by `:re-graph.core/query` event. This event receives query as string, query argument and callback event. If the query suceeds, the callback event will be dispatched to update app-db.
+After initialization, you can issue GraphQL query by `:re-graph.core/query` event. This event receives query as string, query argument and callback event. If the query succeeds, the callback event will be dispatched to update app-db.
 
 ```cljs:src/graphql_client/client/module/graphql.cljs
 (defmethod reg-sub ::sub-query [k] ;; Subscription for query result.
@@ -885,7 +883,7 @@ In this example I use [soda-ash](https://github.com/gadfly361/soda-ash) to use [
 ```
 
 ### Start Subscription
-re-graph also supports Subscription. To use Subscription, you need to specify `:ws-url` in initialization. Then dispatch `:re-graph.core/subscribe` event with subsciption id, query as string, query arguments and callback.
+re-graph also supports Subscription. To use Subscription, you need to specify `:ws-url` in initialization. Then dispatch `:re-graph.core/subscribe` event with subscription id, query as string, query arguments and callback.
 
 ```cljs/graphql_client/client/module/graphql.cljs
 (defmethod reg-sub ::sub-subscription [k]
@@ -914,8 +912,8 @@ re-graph also supports Subscription. To use Subscription, you need to specify `:
 Then you can get resource update in real time.
 
 ## Summary
-In this post, I introduce Tips for Lacinia app development. Although there are some hard point in GraphQL, it's one of the most exciting usecase of Clojure.
-If you have some comments or question, please send me messege in [goronao@Twitter](https://twitter.com/goronao).
+In this post, I introduce Tips for Lacinia app development. Although there are some hard point in GraphQL, it's one of the most exciting use case of Clojure.
+If you have some comments or question, please send me message in [goronao@Twitter](https://twitter.com/goronao).
 
 ## References
 * [Lacinia document](https://lacinia.readthedocs.io/en/latest/)
