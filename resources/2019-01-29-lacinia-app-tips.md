@@ -1,6 +1,8 @@
 ---
 title: Tips for lacinia app development
-description: ""
+description: "Recently, I tried Lacinia because many clojurians and companies begin to use it. It's one of the most exciting clojure library today. I'm very fascinated by it. But while developing Lacinia application, I also met some difficulties. In this post, I introduce how I resolved those difficulties as Tips for lacinia app development.
+
+As I don't intend to introduce Lacinia itself, I don't explain what Lacinia is. Please read [Lacinia document](https://lacinia.readthedocs.io/en/latest/) and try tutorial first."
 image: https://223kazuki.github.io/images/me.jpg
 author: Kazuki Tsutsumi
 author-email: rixi223.kazuki@gmail.com
