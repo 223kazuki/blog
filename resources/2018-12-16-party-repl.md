@@ -12,6 +12,7 @@ location: San Jose, CA, USA
 date-created: 2018-12-16
 date-modified: 2018-12-16
 date-published: 2018-12-16
+draft: true
 headline:
 in-language: en
 keywords: Clojure, REPL, ClojureScript, ATOM
@@ -36,7 +37,8 @@ Party REPL is Atom editor plugin that is developed by using cljs and shadow-cljs
 It is now version 1.0. And it supports Linux/Mac. You can use it with nrepl and unrepl(socket REPL) launched by leiningen.
 I will introduce how to install and how to use it in this post.
 
-n### TeleType
+### TeleType
+TeleType is an Atom plugin for pair programming. You can edit file in remote 
 TeleType は Atom のペアプログラミング用プラグインで、リアルタイムにファイルの共同編集を行なえます。使用するには Github による認証が必要ですが、編集時は WebRTC により PC 同士が直接接続されます。CRDT: Conflict-free Replicated Data Types という編集方式を取っており、編集内容の衝突も起こらない（らしい）です。
 
 ### About Clojure REPL
