@@ -5,7 +5,7 @@
  :dependencies '[[perun "0.4.2-SNAPSHOT"]
                  [hiccup "1.0.5"]
                  [pandeiro/boot-http "0.8.3"]
-                 [clj-time "0.14.0"]])
+                 [clj-time "0.15.1"]])
 
 (require '[clojure.string :as str]
          '[io.perun :refer :all]
